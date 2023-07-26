@@ -1,0 +1,24 @@
+belts:
+- downstream: 2
+  item: kindlevine
+  upstream: 1
+- downstream: 3
+  item: kindlevineSticks
+  upstream: 2
+clusters:
+- node: 1
+  quantity: 1
+  recipeKey:
+    identifier: kindlevine
+    machine: planter
+- node: 2
+  quantity: 1
+  recipeKey:
+    identifier: kindlevine
+    machine: thresher
+- node: 3
+  quantity: 1
+  recipeKey:
+    identifier: kindlevineSticks
+    machine: thresher
+customRecipes: []

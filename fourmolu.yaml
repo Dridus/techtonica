@@ -1,0 +1,24 @@
+indentation: 2
+column-limit: 118
+function-arrows: leading
+comma-style: leading
+import-export-style: diff-friendly
+indent-wheres: false
+record-brace-space: true
+haddock-style: single-line
+haddock-style-module: single-line
+let-style: mixed
+in-style: left-align
+single-constraint-parens: never
+respectful: true
+fixities:
+  - infixl 6 `subI`
+  - infixl 6 `addI`
+  - infixl 7 `mulI`
+  - infixl 7 `divI`
+  - infix 4 :..>.., :.>.., :..>., :.>.
+  - infixr 7 `mulT`
+  - infixr 7 `divT`
+  - infixr 7 `mulR`
+  - infixr 7 `divR`
+
