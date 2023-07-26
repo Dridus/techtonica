@@ -1,7 +1,7 @@
 module Tech.Pretty where
 
 import Control.Lens (each, maximumOf, over, to, toListOf, view, _1, _2, _3)
-import Data.Fixed (Fixed, HasResolution, Micro, Milli, showFixed)
+import Data.Fixed (Fixed, HasResolution, Milli, showFixed)
 import Data.Graph.Inductive (Graph, LEdge, LNode, Node, context, gsel, labEdges, leveln, nodes)
 import Data.Map.Strict qualified as Map
 import Data.Sequence ((|>))
@@ -80,11 +80,11 @@ ppFixed :: HasResolution a => Bool -> Fixed a -> Doc ann
 ppFixed chopZeroes = unsafeTextWithoutNewlines . pack . showFixed chopZeroes
 
 ppQuantity :: Quantity -> Doc AnsiStyle
-ppQuantity = annotate (colorDull Blue) . ppFixed True . unQuantity
+ppQuantity = annotate (colorDull Blue) . ppRational . unQuantity
 
 ppRate :: Rate -> Doc AnsiStyle
 ppRate r =
-  (annotate (color Blue) . ppFixed False . realToFrac @Micro @Milli . (* 60) . unRate $ r)
+  (annotate (color Blue) . ppFixed False . realToFrac @Rational @Milli . (* 60) . unRate $ r)
     <> annotate (color Black) "/min"
 
 ppImage :: (q -> Doc AnsiStyle) -> Image q -> Doc AnsiStyle

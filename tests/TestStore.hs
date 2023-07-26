@@ -55,7 +55,7 @@ infix 4 `yamlShouldBe`
 yamlShouldBe :: HasCallStack => ByteString -> Aeson.Value -> Assertion
 yamlShouldBe actualBs expected =
   Yaml.decodeThrow actualBs >>= \actual ->
-    case AesonDiff.diff actual expected of
+    case AesonDiff.diff expected actual of
       AesonDiff.Patch diffs | null diffs -> pure ()
       patch ->
         assertFailureDoc . vsep $
@@ -94,19 +94,45 @@ linearYaml =
   {
     "belts": [{"downstream": 2, "upstream": 1, "item": "testB"}],
     "clusters": [
-      {"node": 1, "quantity": 1, "recipeKey": {"machine": "test", "identifier": "a1b1"}},
-      {"node": 2, "quantity": 1, "recipeKey": {"machine": "test", "identifier": "b1c1"}}
+      {
+        "node": 1,
+        "quantity": {
+          "numerator": 1,
+          "denominator": 1
+        },
+        "recipeKey": {
+          "machine": "test",
+          "identifier": "a1b1"
+        }
+      },
+      {
+        "node": 2,
+        "quantity": {
+          "numerator": 1,
+          "denominator": 1
+        },
+        "recipeKey": {
+          "machine": "test",
+          "identifier": "b1c1"
+        }
+      }
     ],
     "customRecipes": [
       {
         "key": {"machine": "test", "identifier": "a1b1"},
         "cycleTime": 1,
-        "transfer": {"inputs": {"testA": 1}, "outputs": {"testB": 1}}
+        "transfer": {
+          "inputs": {"testA": {"numerator": 1, "denominator": 1}},
+          "outputs": {"testB": {"numerator": 1, "denominator": 1}}
+        }
       },
       {
         "key": {"machine": "test", "identifier": "b1c1"},
         "cycleTime": 1,
-        "transfer": {"inputs": {"testB": 1}, "outputs": {"testC": 1}}
+        "transfer": {
+          "inputs": {"testB": {"numerator": 1, "denominator": 1}},
+          "outputs": {"testC": {"numerator": 1, "denominator": 1}}
+        }
       }
     ]
   }

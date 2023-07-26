@@ -54,13 +54,13 @@ infix 4 `peqWrappedFixedDeci`
 peqWrappedFixedDeci :: (HasResolution a, Wrapped b, Unwrapped b ~ Fixed a) => b -> b -> Property
 peqWrappedFixedDeci = peqFixedDeci `on` view _Wrapped'
 
-fcmpImage
+fcmpImageFixed
   :: forall q res
    . (HasResolution res, Show q, Wrapped q, Unwrapped q ~ Fixed res)
   => Image q
   -> Image q
   -> Image (String, Bool)
-fcmpImage = ialignWith comp
+fcmpImageFixed = ialignWith comp
  where
   comp :: Item -> These q q -> (String, Bool)
   comp k (This aq) = (show k <> "(" <> show aq <> ") only present on left", False)
@@ -72,59 +72,117 @@ fcmpImage = ialignWith comp
     in
       ("at " <> show k <> " " <> show aq <> label <> show bq, res)
 
-infix 4 `feqImage`
-feqImage
+cmpImageRational
+  :: forall q
+   . (Show q, Wrapped q, Unwrapped q ~ Rational)
+  => Image q
+  -> Image q
+  -> Image (String, Bool)
+cmpImageRational = ialignWith comp
+ where
+  comp :: Item -> These q q -> (String, Bool)
+  comp k (This aq) = (show k <> "(" <> show aq <> ") only present on left", False)
+  comp k (That bq) = (show k <> "(" <> show bq <> ") only present on right", False)
+  comp k (These aq bq) =
+    let
+      res = ((==) `on` view _Wrapped') aq bq
+      label = if res then " ≈ " else " ≉ "
+    in
+      ("at " <> show k <> " " <> show aq <> label <> show bq, res)
+
+infix 4 `feqImageFixed`
+feqImageFixed
   :: forall q res
    . (HasResolution res, Show q, Wrapped q, Unwrapped q ~ Fixed res)
   => Image q
   -> Image q
   -> Bool
-feqImage = fmap (all snd . Map.elems) . fcmpImage
+feqImageFixed = fmap (all snd . Map.elems) . fcmpImageFixed
 
-infix 4 `peqImage`
-peqImage
+infix 4 `eqImageRational`
+eqImageRational
+  :: forall q
+   . (Show q, Wrapped q, Unwrapped q ~ Rational)
+  => Image q
+  -> Image q
+  -> Bool
+eqImageRational = fmap (all snd . Map.elems) . cmpImageRational
+
+infix 4 `peqImageFixed`
+peqImageFixed
   :: forall q res
    . (HasResolution res, Show q, Wrapped q, Unwrapped q ~ Fixed res)
   => Image q
   -> Image q
   -> Property
-peqImage = fmap (conjoin . fmap (uncurry counterexample) . Map.elems) . fcmpImage
+peqImageFixed = fmap (conjoin . fmap (uncurry counterexample) . Map.elems) . fcmpImageFixed
 
-infix 4 `feqTransfer`
-feqTransfer
+infix 4 `peqImageRational`
+peqImageRational
+  :: forall q
+   . (Show q, Wrapped q, Unwrapped q ~ Rational)
+  => Image q
+  -> Image q
+  -> Property
+peqImageRational = fmap (conjoin . fmap (uncurry counterexample) . Map.elems) . cmpImageRational
+
+infix 4 `feqTransferFixed`
+feqTransferFixed
   :: forall q res
    . (HasResolution res, Show q, Wrapped q, Unwrapped q ~ Fixed res)
   => Transfer q
   -> Transfer q
   -> Bool
-feqTransfer a b =
-  (feqImage `on` view inputs) a b
-    && (feqImage `on` view outputs) a b
+feqTransferFixed a b =
+  (feqImageFixed `on` view inputs) a b
+    && (feqImageFixed `on` view outputs) a b
 
-infix 4 `peqTransfer`
-peqTransfer
+infix 4 `eqTransferRational`
+eqTransferRational
+  :: forall q
+   . (Show q, Wrapped q, Unwrapped q ~ Rational)
+  => Transfer q
+  -> Transfer q
+  -> Bool
+eqTransferRational a b =
+  (eqImageRational `on` view inputs) a b
+    && (eqImageRational `on` view outputs) a b
+
+infix 4 `peqTransferFixed`
+peqTransferFixed
   :: forall q res
    . (HasResolution res, Show q, Wrapped q, Unwrapped q ~ Fixed res)
   => Transfer q
   -> Transfer q
   -> Property
-peqTransfer a b =
-  (peqImage `on` view inputs) a b
-    .&&. (peqImage `on` view outputs) a b
+peqTransferFixed a b =
+  (peqImageFixed `on` view inputs) a b
+    .&&. (peqImageFixed `on` view outputs) a b
+
+infix 4 `peqTransferRational`
+peqTransferRational
+  :: forall q
+   . (Show q, Wrapped q, Unwrapped q ~ Rational)
+  => Transfer q
+  -> Transfer q
+  -> Property
+peqTransferRational a b =
+  (peqImageRational `on` view inputs) a b
+    .&&. (peqImageRational `on` view outputs) a b
 
 infix 4 `feqRecipe`
 feqRecipe :: Recipe -> Recipe -> Bool
 feqRecipe a b =
   (feqFixedDeci `on` nominalDiffTimeToSeconds . view cycleTime) a b
     && ((==) `on` view key) a b
-    && (feqTransfer `on` view transfer) a b
+    && (eqTransferRational `on` view transfer) a b
 
 infix 4 `peqRecipe`
 peqRecipe :: Recipe -> Recipe -> Property
 peqRecipe a b =
   (peqFixedDeci `on` nominalDiffTimeToSeconds . view cycleTime) a b
     .&&. ((===) `on` view key) a b
-    .&&. (peqTransfer `on` view transfer) a b
+    .&&. (peqTransferRational `on` view transfer) a b
 
 beltStShouldBe :: HasCallStack => BeltSt -> BeltSt -> Assertion
 beltStShouldBe a b =
@@ -137,8 +195,8 @@ infix 4 `feqBeltDy`
 feqBeltDy :: BeltDy -> BeltDy -> Bool
 feqBeltDy a b =
   ((==) `on` view item) a b
-    && (feqWrappedFixedDeci `on` view entering) a b
-    && (feqWrappedFixedDeci `on` view exiting) a b
+    && ((==) `on` view entering) a b
+    && ((==) `on` view exiting) a b
 
 beltDyShouldBe :: HasCallStack => BeltDy -> BeltDy -> Assertion
 beltDyShouldBe a b =
@@ -151,7 +209,7 @@ infix 4 `feqClusterSt`
 feqClusterSt :: ClusterSt -> ClusterSt -> Bool
 feqClusterSt a b =
   (feqRecipe `on` view recipe) a b
-    && (feqWrappedFixedDeci `on` view quantity) a b
+    && ((==) `on` view quantity) a b
 
 clusterStShouldBe :: HasCallStack => ClusterSt -> ClusterSt -> Assertion
 clusterStShouldBe a b =
@@ -164,8 +222,8 @@ infix 4 `feqClusterDy`
 feqClusterDy :: ClusterDy -> ClusterDy -> Bool
 feqClusterDy a b =
   (feqRecipe `on` view recipe) a b
-    && (feqWrappedFixedDeci `on` view quantity) a b
-    && (feqTransfer `on` view transfer) a b
+    && ((==) `on` view quantity) a b
+    && (eqTransferRational `on` view transfer) a b
 
 clusterDyShouldBe :: HasCallStack => ClusterDy -> ClusterDy -> Assertion
 clusterDyShouldBe a b =

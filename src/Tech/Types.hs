@@ -3,7 +3,6 @@ module Tech.Types where
 import Control.Lens (Wrapped (type Unwrapped), each, over, view, _Wrapped')
 import Control.Lens.TH (makeLensesWith, makeWrapped, underscoreFields)
 import Data.Align (alignWith)
-import Data.Fixed (Micro)
 import Data.Graph.Inductive (Gr)
 import Data.Map.Strict qualified as Map
 import Data.These (fromThese)
@@ -46,7 +45,7 @@ instance Show RecipeIdentifier where
 
 -- ** Cluster quantities
 
-newtype Quantity = Quantity {unQuantity :: Micro}
+newtype Quantity = Quantity {unQuantity :: Rational}
 deriving newtype instance Eq Quantity
 deriving newtype instance Fractional Quantity
 deriving newtype instance Num Quantity
@@ -59,7 +58,7 @@ instance Show Quantity where
 
 -- ** Clusters per second
 
-newtype Rate = Rate {unRate :: Micro}
+newtype Rate = Rate {unRate :: Rational}
 deriving newtype instance Eq Rate
 deriving newtype instance Fractional Rate
 deriving newtype instance Num Rate
@@ -175,11 +174,11 @@ instance Eq Recipe where (==) = (==) `on` view key
 instance Ord Recipe where compare = compare `on` view key
 
 infixr 7 `mulR`
-mulR :: Micro -> Recipe -> Recipe
+mulR :: Rational -> Recipe -> Recipe
 mulR = over transfer . mulT
 
 infixr 7 `divR`
-divR :: Recipe -> Micro -> Recipe
+divR :: Recipe -> Rational -> Recipe
 divR r n = over transfer (`divT` n) r
 
 -- * Factories

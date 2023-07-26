@@ -4,7 +4,6 @@ module TestTypes where
 
 import ArbitraryTypes ()
 import Control.Lens (over)
-import Data.Fixed (Micro)
 import Data.Map.Strict qualified as Map
 import Tech.TestFixtures (testItemA)
 import Tech.Types
@@ -12,7 +11,7 @@ import Test.QuickCheck (mapSize, (===))
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (assertEqual, assertFailure, testCase)
 import Test.Tasty.QuickCheck (testProperty)
-import TestUtils (peqImage, peqRecipe, peqTransfer)
+import TestUtils (peqImageRational, peqRecipe, peqTransferRational)
 
 tests :: TestTree
 tests =
@@ -94,14 +93,14 @@ testSubI = testGroup "subI" [fills, properties]
         (One (testItemA, Quantity 1.0))
   properties = testGroup "properties" [antiCommutativity, addIConcordance, identities]
   antiCommutativity = testProperty "anti-commutativity" $
-    \(a :: Image Quantity) b -> a `subI` b `peqImage` negateI (b `subI` a)
+    \(a :: Image Quantity) b -> a `subI` b `peqImageRational` negateI (b `subI` a)
   addIConcordance = testProperty "addI concordance" $
-    \(a :: Image Quantity) b -> a `subI` b `peqImage` a `addI` negateI b
+    \(a :: Image Quantity) b -> a `subI` b `peqImageRational` a `addI` negateI b
   identities = testGroup "identities" [leftIdentity, rightIdentity]
   leftIdentity = testProperty "left identity" $
-    \(a :: Image Quantity) -> (0 <$ a) `subI` negateI a `peqImage` a
+    \(a :: Image Quantity) -> (0 <$ a) `subI` negateI a `peqImageRational` a
   rightIdentity = testProperty "right identity" $
-    \(a :: Image Quantity) -> a `subI` (0 <$ a) `peqImage` a
+    \(a :: Image Quantity) -> a `subI` (0 <$ a) `peqImageRational` a
 
 testAddI :: TestTree
 testAddI = testGroup "addI" [fills, properties]
@@ -121,14 +120,14 @@ testAddI = testGroup "addI" [fills, properties]
         (One (testItemA, Quantity 1.0))
   properties = testGroup "properties" [commutativity, associativity, identities]
   commutativity = testProperty "commutativity" $
-    \(a :: Image Quantity) b -> a `addI` b `peqImage` b `addI` a
+    \(a :: Image Quantity) b -> a `addI` b `peqImageRational` b `addI` a
   associativity = testProperty "associativity" $
-    \(a :: Image Quantity) b c -> a `addI` (b `addI` c) `peqImage` (a `addI` b) `addI` c
+    \(a :: Image Quantity) b c -> a `addI` (b `addI` c) `peqImageRational` (a `addI` b) `addI` c
   identities = testGroup "identities" [leftIdentity, rightIdentity]
   leftIdentity = testProperty "left identity" $
-    \(a :: Image Quantity) -> (0 <$ a) `addI` a `peqImage` a
+    \(a :: Image Quantity) -> (0 <$ a) `addI` a `peqImageRational` a
   rightIdentity = testProperty "right identity" $
-    \(a :: Image Quantity) -> a `addI` (0 <$ a) `peqImage` a
+    \(a :: Image Quantity) -> a `addI` (0 <$ a) `peqImageRational` a
 
 testMulI :: TestTree
 testMulI = testGroup "mulI" [properties]
@@ -143,18 +142,18 @@ testMulI = testGroup "mulI" [properties]
       ]
   identities = testGroup "identities" [leftIdentity, rightIdentity]
   leftIdentity = testProperty "left identity" $
-    \(a :: Image Quantity) -> 1 `mulI` a `peqImage` a
+    \(a :: Image Quantity) -> 1 `mulI` a `peqImageRational` a
   rightIdentity = testProperty "right identity" $
-    \a -> a `mulI` One (testItemA, Quantity 1) `peqImage` One (testItemA, Quantity a)
+    \a -> a `mulI` One (testItemA, Quantity 1) `peqImageRational` One (testItemA, Quantity a)
   distributivity = testProperty "distributivity" $
-    \a (b :: Image Quantity) c -> a `mulI` (b `addI` c) `peqImage` a `mulI` b `addI` a `mulI` c
+    \a (b :: Image Quantity) c -> a `mulI` (b `addI` c) `peqImageRational` a `mulI` b `addI` a `mulI` c
   zeroProperties = testGroup "identities" [leftZeroProperty, rightZeroProperty]
   leftZeroProperty = testProperty "left zero property" $
-    \(a :: Image Quantity) -> 0 `mulI` a `peqImage` (Quantity 0 <$ a)
+    \(a :: Image Quantity) -> 0 `mulI` a `peqImageRational` (Quantity 0 <$ a)
   rightZeroProperty = testProperty "right zero property" $
-    \a -> a `mulI` One (testItemA, Quantity 0) `peqImage` One (testItemA, Quantity 0)
+    \a -> a `mulI` One (testItemA, Quantity 0) `peqImageRational` One (testItemA, Quantity 0)
   negation = testProperty "negation" $
-    \(a :: Image Quantity) -> (-1) `mulI` a `peqImage` negateI a
+    \(a :: Image Quantity) -> (-1) `mulI` a `peqImageRational` negateI a
 
 testDivI :: TestTree
 testDivI = testGroup "divI" [properties]
@@ -166,36 +165,36 @@ testDivI = testGroup "divI" [properties]
       ]
   identities = testGroup "identities" [leftIdentity, rightIdentity]
   leftIdentity = testProperty "left identity" $
-    \(a :: Image Quantity) -> a `divI` 1 `peqImage` a
+    \(a :: Image Quantity) -> a `divI` 1 `peqImageRational` a
   rightIdentity = testProperty "right identity" $
-    \a -> One (testItemA, Quantity 1) `divI` a `peqImage` One (testItemA, Quantity a)
+    \a -> One (testItemA, Quantity 1) `divI` a `peqImageRational` One (testItemA, Quantity a)
 
 testSumImage :: TestTree
 testSumImage = testGroup "SumImage" [addIConcordance]
  where
   addIConcordance = testProperty "concordance" . mapSize (const 10) $
     \(a :: [Image Quantity]) ->
-      getSumImage (mconcat (SumImage <$> a)) `peqImage` foldl' addI mempty a
+      getSumImage (mconcat (SumImage <$> a)) `peqImageRational` foldl' addI mempty a
 
 testMulT :: TestTree
 testMulT = testGroup "mulT" [distributivity]
  where
   distributivity = testProperty "distributivity" $
     \a b@(Transfer (i :: Image Quantity) o) ->
-      a `mulT` b `peqTransfer` Transfer (a `mulI` i) (a `mulI` o)
+      a `mulT` b `peqTransferRational` Transfer (a `mulI` i) (a `mulI` o)
 
 testDivT :: TestTree
 testDivT = testGroup "divT" [distributivity]
  where
   distributivity = testProperty "distributivity" $
     \a@(Transfer (i :: Image Quantity) o) b ->
-      a `divT` b `peqTransfer` Transfer (i `divI` b) (o `divI` b)
+      a `divT` b `peqTransferRational` Transfer (i `divI` b) (o `divI` b)
 
 testMulR :: TestTree
 testMulR = testGroup "mulR" [distributivity]
  where
   distributivity = testProperty "distributivity" $
-    \(a :: Micro) b -> a `mulR` b `peqRecipe` over transfer (a `mulT`) b
+    \(a :: Rational) b -> a `mulR` b `peqRecipe` over transfer (a `mulT`) b
 
 testDivR :: TestTree
 testDivR = testGroup "divR" [distributivity]
