@@ -1,5 +1,6 @@
 module Tech.Ghci (
   module Export,
+  putDocLn,
   currentFactory,
   currentRecipes,
   printFactory,
@@ -16,13 +17,14 @@ module Tech.Ghci (
   delRecipe,
   resetRecipes,
   addCluster,
+  editCluster,
   delCluster,
   addBelt,
   delBelt,
 ) where
 
 import Control.Lens as Export
-import Data.Graph.Inductive as Export (Gr, Graph, LEdge, LNode, Node, context, labEdges, labNodes)
+import Data.Graph.Inductive (Node)
 import Data.Graph.Inductive qualified as Gr
 import Data.Map.Strict qualified as Map
 import Data.Time.Clock (NominalDiffTime)
@@ -40,6 +42,9 @@ import Tech.Store qualified as Store
 import Tech.Types as Export
 import Tech.Verify as Export (verifyFactorySt)
 
+putDocLn :: Pp.Doc PpT.AnsiStyle -> IO ()
+putDocLn d = putDoc d >> putStrLn ""
+
 {-# NOINLINE currentFactory #-}
 currentFactory :: IORef FactorySt
 currentFactory = unsafePerformIO (newIORef Gr.empty)
@@ -49,19 +54,18 @@ currentRecipes :: IORef Recipes
 currentRecipes = unsafePerformIO (newIORef builtinRecipes)
 
 printFactory :: IO ()
-printFactory = do
-  putDoc . ppFactorySt =<< readIORef currentFactory
-  putStrLn ""
+printFactory = putDocLn . ppFactorySt =<< readIORef currentFactory
 
 saveFactory :: FilePath -> IO ()
 saveFactory fp = Store.storeFactoryFile fp =<< readIORef currentFactory
 
 loadFactory :: FilePath -> IO ()
-loadFactory fp = Store.loadFactoryFile fp >>= \case
-  Left err -> putDoc . ppLoadError $ err
-  Right (warns, factSt) -> do
-    putDoc . vsep . fmap ppLoadWarning $ warns
-    setFactory factSt
+loadFactory fp =
+  Store.loadFactoryFile fp >>= \case
+    Left err -> putDocLn . ppLoadError $ err
+    Right (warns, factSt) -> do
+      putDocLn . vsep . fmap ppLoadWarning $ warns
+      setFactory factSt
 
 setFactory :: FactorySt -> IO ()
 setFactory = writeIORef currentFactory
@@ -70,18 +74,14 @@ clearFactory :: IO ()
 clearFactory = setFactory Gr.empty
 
 estimateFactory :: IO ()
-estimateFactory = do
-  putDoc . ppFactoryDy . estimate =<< readIORef currentFactory
-  putStrLn ""
+estimateFactory = putDocLn . ppFactoryDy . estimate =<< readIORef currentFactory
 
 verifyFactory :: IO ()
-verifyFactory = do
-  void . printVerify' =<< readIORef currentFactory
-  putStrLn ""
+verifyFactory = void . printVerify' =<< readIORef currentFactory
 
 printVerify' :: FactorySt -> IO Bool
 printVerify' fact = do
-  putDoc . Pp.vsep $
+  putDocLn . Pp.vsep $
     (ppVerifyWarning <$> toList warnings)
       <> (ppVerifyError <$> toList errors)
       <> [disposition]
@@ -124,22 +124,19 @@ findRecipe m rid = do
     Nothing -> fail "recipe not found"
 
 listAllRecipes :: IO ()
-listAllRecipes = do
-  putDoc . vsep . fmap f . Map.toList =<< readIORef currentRecipes
-  putStrLn ""
+listAllRecipes = putDocLn . vsep . fmap f . Map.toList =<< readIORef currentRecipes
  where
   f (_, rs) = vsep $ fmap ppRecipe (Map.elems rs)
 
 listRecipes :: Machine -> IO ()
-listRecipes m = do
-  putDoc
+listRecipes m =
+  putDocLn
     . vsep
     . fmap ppRecipe
     . Map.elems
     . fromMaybe mempty
     . Map.lookup m
     =<< readIORef currentRecipes
-  putStrLn ""
 
 addRecipe :: Machine -> RecipeIdentifier -> NominalDiffTime -> Transfer Quantity -> IO ()
 addRecipe m rid ctime txfr =
@@ -153,11 +150,20 @@ delRecipe m rid = modifyIORef' currentRecipes $ Map.adjust (Map.delete rid) m
 resetRecipes :: IO ()
 resetRecipes = writeIORef currentRecipes builtinRecipes
 
-addCluster :: IO Recipe -> Quantity -> IO ()
+addCluster :: IO Recipe -> Quantity -> IO Node
 addCluster recipeIO qty = do
   c <- ClusterSt <$> recipeIO <*> pure qty
-  modifyIORef' currentFactory $ \gin ->
-    Gr.insNode (if Gr.isEmpty gin then 1 else succ . snd $ Gr.nodeRange gin, c) gin
+  gin <- readIORef currentFactory
+  let n = if Gr.isEmpty gin then 1 else succ . snd $ Gr.nodeRange gin
+  n <$ writeIORef currentFactory (Gr.insNode (n, c) gin)
+
+editCluster :: Node -> (ClusterSt -> ClusterSt) -> IO ()
+editCluster n f = do
+  g <- readIORef currentFactory
+  let (mctx, g') = Gr.match n g
+  ctx <- maybe (fail "Invalid node") pure mctx
+  let ctx' = over _3 f ctx
+  writeIORef currentFactory $! ctx' Gr.& g'
 
 delCluster :: Node -> IO ()
 delCluster n = modifyIORef' currentFactory $ Gr.delNode n
