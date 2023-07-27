@@ -391,6 +391,11 @@ ppVerifyError = \case
       [ annotate (color Red) ("Error: Belt downstream (successor) node" <+> pretty ns <+> "invalid.")
       , indent 2 (ppBeltSt (np, ns) b)
       ]
+  Verify.UnknownItem i r ->
+    vsep
+      [ annotate (color Red) ("Error: Unknown item " <> ppItem i)
+      , indent 2 (ppRecipe r)
+      ]
 
 ppVerifyWarning :: VerifyWarning -> Doc AnsiStyle
 ppVerifyWarning = \case

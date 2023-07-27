@@ -21,6 +21,7 @@ module Tech.Ghci (
   listAllRecipes,
   listRecipes,
   addRecipe,
+  editRecipe,
   delRecipe,
   listItems,
   addItem,
@@ -41,13 +42,18 @@ import System.IO.Unsafe (unsafePerformIO)
 import Tech.Machines as Export
 import Tech.Planner as Export
 import Tech.Pretty as Export
-import Tech.Recipes (Recipes, findRecipeByKey)
+import Tech.Recipes (Recipes, findRecipeByKey, insertRecipe)
 import Tech.Store qualified as Store
 import Tech.Types as Export
-import Tech.Verify as Export (verifyFactorySt)
+import Tech.Verify (VerifyError, VerifyWarning, verifyFactorySt)
+import Tech.Verify qualified as Verify
 
 putDocLn :: Pp.Doc PpT.AnsiStyle -> IO ()
-putDocLn d = putDoc d >> putStrLn ""
+putDocLn d
+  | ls == Pp.SEmpty = pure ()
+  | otherwise = PpT.renderIO stdout ls >> putStrLn ""
+ where
+  ls = Pp.layoutPretty Pp.defaultLayoutOptions d
 
 {-# NOINLINE currentFactory #-}
 currentFactory :: IORef FactorySt
@@ -89,41 +95,43 @@ estimateFactory :: IO ()
 estimateFactory = putDocLn . ppFactoryDy . estimate =<< readIORef currentFactory
 
 verifyFactory :: IO ()
-verifyFactory = void . printVerify' =<< readIORef currentFactory
+verifyFactory =
+  readIORef currentFactory >>= printVerify . verifyFactorySt >>= \case
+    (True, True) ->
+      putDocLn $
+        Pp.annotate
+          (PpT.color PpT.Green)
+          "Verify OK!"
+    _ -> pure ()
 
-printVerify' :: FactorySt -> IO Bool
-printVerify' fact = do
+printVerify :: (Set VerifyWarning, Either (Set VerifyError) ()) -> IO (Bool, Bool)
+printVerify (warnings, res) = do
   putDocLn . Pp.vsep $
     (ppVerifyWarning <$> toList warnings)
       <> (ppVerifyError <$> toList errors)
       <> [disposition]
-  pure (null errors)
+  pure (null errors, null warnings)
  where
-  (warnings, res) = verifyFactorySt fact
   errors = fromMaybe mempty $ preview _Left res
-  disposition = case (null errors, null warnings) of
-    (True, True) ->
-      Pp.annotate
-        (PpT.color PpT.Green)
-        "Verify OK!"
-        <> Pp.line
+  disposition = case (Set.null errors, Set.null warnings) of
+    (True, True) -> mempty
     (True, False) ->
       Pp.annotate
         (PpT.color PpT.Yellow)
-        ("Verified with" Pp.<+> Pp.pretty (length warnings) Pp.<+> "warning(s).")
+        ("Verified with" Pp.<+> Pp.pretty (Set.size warnings) Pp.<+> "warning(s).")
         <> Pp.line
     (False, True) ->
       Pp.annotate
         (PpT.color PpT.Red)
-        ("Verify failed with" Pp.<+> Pp.pretty (length errors) Pp.<+> "error(s).")
+        ("Verify failed with" Pp.<+> Pp.pretty (Set.size errors) Pp.<+> "error(s).")
         <> Pp.line
     (False, False) ->
       Pp.annotate
         (PpT.color PpT.Red)
         ( "Verify failed with"
-            Pp.<+> Pp.pretty (length errors)
+            Pp.<+> Pp.pretty (Set.size errors)
             Pp.<+> "error(s) and"
-            Pp.<+> Pp.pretty (length warnings)
+            Pp.<+> Pp.pretty (Set.size warnings)
             Pp.<+> "warning(s)."
         )
         <> Pp.line
@@ -186,22 +194,27 @@ listRecipes m =
     . Map.lookup m
     =<< readIORef currentRecipes
 
+verifyRecipe :: Recipe -> IO (Bool, Bool)
+verifyRecipe r = do
+  knownItems <- readIORef currentItems
+  printVerify $ Verify.verifyRecipe knownItems r
+
 addRecipe :: Machine -> RecipeIdentifier -> NominalDiffTime -> Transfer Quantity -> IO ()
 addRecipe m rid ctime txfr = do
-  items <- readIORef currentItems
-  let usedItems =
-        Set.fromList
-          . toListOf (to (view inputs &&& view outputs) . both . ifolded . asIndex)
-          $ txfr
-  let unregisteredItems = Set.difference usedItems items
-  unless (Set.null unregisteredItems) $ do
-    putDocLn . Pp.vsep $
-      Pp.annotate (PpT.color PpT.Red) "One or more used items are not registered:"
-        : (ppItem <$> Set.toList unregisteredItems)
-
-  modifyIORef' currentRecipes $ Map.insertWith (<>) m (Map.singleton rid r)
+  whenM (has (ix m . ix rid) <$> readIORef currentRecipes) $
+    fail "recipe already exists. maybe editRecipe?"
+  whenM (andOf both <$> verifyRecipe r) $
+    modifyIORef' currentRecipes $
+      insertRecipe r
  where
   r = Recipe (RecipeKey m rid) ctime txfr
+
+editRecipe :: Machine -> RecipeIdentifier -> (Recipe -> Recipe) -> IO ()
+editRecipe m rid f = do
+  r <- maybe (fail "recipe not found") pure . preview (ix m . ix rid) =<< readIORef currentRecipes
+  let r' = f r
+  whenM (andOf both <$> verifyRecipe r') $ do
+    modifyIORef' currentRecipes $ insertRecipe r'
 
 delRecipe :: Machine -> RecipeIdentifier -> IO ()
 delRecipe m rid = modifyIORef' currentRecipes $ Map.adjust (Map.delete rid) m

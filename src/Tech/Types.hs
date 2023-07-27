@@ -75,6 +75,11 @@ instance Show Rate where
 
 type Image q = Map Item q
 
+pattern Many :: (Ord k) => () => [(k, v)] -> Map k v
+pattern Many ps <- (Map.toList -> ps)
+  where
+    Many ps = Map.fromList ps
+
 pattern Pair :: (Ord k) => () => (k, v) -> (k, v) -> Map k v
 pattern Pair p q <- (Map.toList -> [p, q])
   where

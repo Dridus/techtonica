@@ -1,7 +1,6 @@
 module Tech.Verify where
 
-import Control.Lens (has, ix, modifying, view, _1, _2, _3)
-import Control.Lens.TH (makeLensesWith, underscoreFields)
+import Control.Lens (asIndex, both, has, ifolded, ix, modifying, to, toListOf, view, _1, _2, _3)
 import Control.Monad.Except (throwError)
 import Control.Monad.RWS.Strict (RWS, runRWS)
 import Data.Graph.Inductive (Context, LEdge, LNode, Node, labEdges, match)
@@ -13,7 +12,10 @@ data VerifyError
       {_verifyError_edge :: LEdge BeltSt}
   | BeltDownNodeInvalid
       {_verifyError_edge :: LEdge BeltSt}
-makeLensesWith underscoreFields ''VerifyError
+  | UnknownItem
+      { _verifyError_item :: Item
+      , _verifyError_recipe :: Recipe
+      }
 deriving stock instance Eq VerifyError
 deriving stock instance Ord VerifyError
 deriving stock instance Show VerifyError
@@ -27,7 +29,6 @@ data VerifyWarning
       { _verifyWarning_downNode :: LNode ClusterSt
       , _verifyWarning_edge :: LEdge BeltSt
       }
-makeLensesWith underscoreFields ''VerifyWarning
 deriving stock instance Eq VerifyWarning
 deriving stock instance Ord VerifyWarning
 deriving stock instance Show VerifyWarning
@@ -84,3 +85,14 @@ verifyOneBeltItems e@(np, ns, b) = do
     cl <- needCluster ns (BeltDownNodeInvalid e)
     unless (has (recipe . transfer . inputs . ix (view item b)) cl) $
       raiseVerifyWarning (BeltItemNotInputForDown (ns, cl) e)
+
+verifyRecipe :: Set Item -> Recipe -> (Set VerifyWarning, Either (Set VerifyError) ())
+verifyRecipe knownItems r
+  | Set.null unregisteredItems = (mempty, Right ())
+  | otherwise = (mempty, Left $ Set.mapMonotonic (`UnknownItem` r) unregisteredItems)
+ where
+  usedItems =
+    Set.fromList
+      . toListOf (transfer . to (view inputs &&& view outputs) . both . ifolded . asIndex)
+      $ r
+  unregisteredItems = Set.difference usedItems knownItems

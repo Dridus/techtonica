@@ -241,6 +241,11 @@ state goes away without warning, so make sure to `saveFactory`.
   You don't need to `addRecipe` a recipe, it just registers the name. You can also just mention
   the recipe when adding a cluster.
 
+- `editRecipe :: Machine -> RecipeIdentifier -> (Recipe -> Recipe) -> IO ()`
+
+  Edit a recipe in-place. Not different from `delRecipe` and `addRecipe` other than being more
+  convenient.
+
 - `delRecipe :: Machine -> RecipeIdentifier -> IO ()`
 
   Like `addRecipe`, but more violent. And with fewer questions.
@@ -363,6 +368,7 @@ And there are synonyms for `Image` as well:
 
 - `One (i, q)` = `Map.singleton i q`
 - `Pair (i1, q1) (i2, q2)` = `Map.fromList [(i1, q1), (i2, q2)]`
+- `Many [(i1, q1), .., (ix, qx)]` = `Map.fromList [(i1, q1), .., (ix, qx)]`
 
 ## Other
 

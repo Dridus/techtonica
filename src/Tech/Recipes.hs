@@ -9,6 +9,10 @@ type Recipes = Map Machine (Map RecipeIdentifier Recipe)
 findRecipeByKey :: Recipes -> RecipeKey -> Maybe Recipe
 findRecipeByKey recipes (RecipeKey m rid) = preview (ix m . ix rid) recipes
 
+insertRecipe :: Recipe -> Recipes -> Recipes
+insertRecipe r =
+  Map.insertWith (<>) (view (key . machine) r) (Map.singleton (view (key . identifier) r) r)
+
 indexRecipes :: [Recipe] -> Recipes
 indexRecipes =
   Map.unionsWith (<>)
