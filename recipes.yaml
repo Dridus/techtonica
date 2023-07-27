@@ -1,0 +1,205 @@
+items:
+- biobrick
+- copperComponents
+- copperFrame
+- copperIngot
+- ironComponents
+- ironFrame
+- ironIngot
+- kindlevine
+- kindlevineExtract
+- kindlevineSeed
+- kindlevineSticks
+- limestone
+- plantmatter
+- plantmatterFiber
+- plantmatterFrame
+- silverthorn
+- silverthornBuds
+- silverthornExtract
+- silverthornSeed
+recipes:
+- cycleTime: 20
+  key:
+    identifier: biobrick
+    machine: assembler
+  transfer:
+    inputs:
+      limestone:
+        denominator: 1
+        numerator: 50
+      plantmatter:
+        denominator: 1
+        numerator: 25
+    outputs:
+      biobrick:
+        denominator: 1
+        numerator: 10
+- cycleTime: 8
+  key:
+    identifier: copperComponents
+    machine: assembler
+  transfer:
+    inputs:
+      copperIngot:
+        denominator: 1
+        numerator: 3
+    outputs:
+      copperComponents:
+        denominator: 1
+        numerator: 4
+- cycleTime: 12
+  key:
+    identifier: copperFrame
+    machine: assembler
+  transfer:
+    inputs:
+      copperIngot:
+        denominator: 1
+        numerator: 4
+    outputs:
+      copperFrame:
+        denominator: 1
+        numerator: 2
+- cycleTime: 4
+  key:
+    identifier: ironComponents
+    machine: assembler
+  transfer:
+    inputs:
+      ironIngot:
+        denominator: 1
+        numerator: 1
+    outputs:
+      ironComponents:
+        denominator: 1
+        numerator: 2
+- cycleTime: 12
+  key:
+    identifier: ironFrame
+    machine: assembler
+  transfer:
+    inputs:
+      ironIngot:
+        denominator: 1
+        numerator: 4
+    outputs:
+      ironFrame:
+        denominator: 1
+        numerator: 2
+- cycleTime: 3
+  key:
+    identifier: plantmatter
+    machine: assembler
+  transfer:
+    inputs:
+      plantmatterFiber:
+        denominator: 1
+        numerator: 3
+    outputs:
+      plantmatter:
+        denominator: 1
+        numerator: 2
+- cycleTime: 12
+  key:
+    identifier: plantmatterFrame
+    machine: assembler
+  transfer:
+    inputs:
+      plantmatterFiber:
+        denominator: 1
+        numerator: 6
+    outputs:
+      plantmatterFrame:
+        denominator: 1
+        numerator: 2
+- cycleTime: 130
+  key:
+    identifier: kindlevine
+    machine: planter
+  transfer:
+    inputs:
+      kindlevineSeed:
+        denominator: 1
+        numerator: 1
+    outputs:
+      kindlevine:
+        denominator: 1
+        numerator: 1
+- cycleTime: 130
+  key:
+    identifier: silverthorn
+    machine: planter
+  transfer:
+    inputs:
+      silverthornSeed:
+        denominator: 1
+        numerator: 1
+    outputs:
+      silverthorn:
+        denominator: 1
+        numerator: 1
+- cycleTime: 6
+  key:
+    identifier: kindlevine
+    machine: thresher
+  transfer:
+    inputs:
+      kindlevine:
+        denominator: 1
+        numerator: 1
+    outputs:
+      kindlevineSeed:
+        denominator: 1
+        numerator: 1
+      kindlevineSticks:
+        denominator: 1
+        numerator: 4
+- cycleTime: 3
+  key:
+    identifier: kindlevineSticks
+    machine: thresher
+  transfer:
+    inputs:
+      kindlevineSticks:
+        denominator: 1
+        numerator: 1
+    outputs:
+      kindlevineExtract:
+        denominator: 1
+        numerator: 4
+      plantmatterFiber:
+        denominator: 1
+        numerator: 4
+- cycleTime: 5.75
+  key:
+    identifier: silverthorn
+    machine: thresher
+  transfer:
+    inputs:
+      silverthorn:
+        denominator: 1
+        numerator: 1
+    outputs:
+      silverthornBuds:
+        denominator: 1
+        numerator: 4
+      silverthornSeed:
+        denominator: 1
+        numerator: 1
+- cycleTime: 3
+  key:
+    identifier: silverthornBuds
+    machine: thresher
+  transfer:
+    inputs:
+      silverthornBuds:
+        denominator: 1
+        numerator: 1
+    outputs:
+      plantmatter:
+        denominator: 1
+        numerator: 5
+      silverthornExtract:
+        denominator: 1
+        numerator: 4

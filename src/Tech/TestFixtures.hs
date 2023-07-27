@@ -1,13 +1,18 @@
 module Tech.TestFixtures where
 
 import Data.Graph.Inductive (Gr, LNode, mkGraph)
+import Data.Set qualified as Set
 import Tech.Planner (assignClusterRates, estimate, externalRecipe, nExternalSink, nExternalSource)
+import Tech.Recipes (Recipes, indexRecipes)
 import Tech.Types
 
 testItemA, testItemB, testItemC :: Item
 testItemA = Item "testA"
 testItemB = Item "testB"
 testItemC = Item "testC"
+
+testItems :: Set Item
+testItems = Set.fromList [testItemA, testItemB, testItemC]
 
 testMachine :: Machine
 testMachine = Machine "test"
@@ -19,6 +24,9 @@ testTransferB1C1 = (testItemB, 1) :->-: (testItemC, 1)
 testRecipeA1B1, testRecipeB1C1 :: Recipe
 testRecipeA1B1 = Recipe (RecipeKey testMachine "a1b1") 1 testTransferA1B1
 testRecipeB1C1 = Recipe (RecipeKey testMachine "b1c1") 1 testTransferB1C1
+
+testRecipes :: Recipes
+testRecipes = indexRecipes [testRecipeA1B1, testRecipeB1C1]
 
 testClusterA1B1, testClusterB1C1 :: ClusterSt
 testClusterA1B1 = ClusterSt testRecipeA1B1 1

@@ -10,34 +10,38 @@ module Tech.Ghci (
   clearFactory,
   estimateFactory,
   verifyFactory,
-  findRecipe,
-  listAllRecipes,
-  listRecipes,
-  addRecipe,
-  delRecipe,
-  resetRecipes,
   addCluster,
   editCluster,
   delCluster,
   addBelt,
   delBelt,
+  findRecipe,
+  saveRecipes,
+  loadRecipes,
+  listAllRecipes,
+  listRecipes,
+  addRecipe,
+  delRecipe,
+  listItems,
+  addItem,
+  delItem,
 ) where
 
 import Control.Lens as Export
 import Data.Graph.Inductive (Node)
 import Data.Graph.Inductive qualified as Gr
 import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
 import Data.Time.Clock (NominalDiffTime)
 import Prettyprinter (vsep)
 import Prettyprinter qualified as Pp
 import Prettyprinter.Render.Terminal as Export (putDoc)
 import Prettyprinter.Render.Terminal qualified as PpT
 import System.IO.Unsafe (unsafePerformIO)
-import Tech.Items as Export
 import Tech.Machines as Export
 import Tech.Planner as Export
 import Tech.Pretty as Export
-import Tech.Recipes as Export
+import Tech.Recipes (Recipes, findRecipeByKey)
 import Tech.Store qualified as Store
 import Tech.Types as Export
 import Tech.Verify as Export (verifyFactorySt)
@@ -49,19 +53,27 @@ putDocLn d = putDoc d >> putStrLn ""
 currentFactory :: IORef FactorySt
 currentFactory = unsafePerformIO (newIORef Gr.empty)
 
+{-# NOINLINE currentItems #-}
+currentItems :: IORef (Set Item)
+currentItems = unsafePerformIO (newIORef mempty)
+
 {-# NOINLINE currentRecipes #-}
 currentRecipes :: IORef Recipes
-currentRecipes = unsafePerformIO (newIORef builtinRecipes)
+currentRecipes = unsafePerformIO (newIORef mempty)
 
 printFactory :: IO ()
 printFactory = putDocLn . ppFactorySt =<< readIORef currentFactory
 
 saveFactory :: FilePath -> IO ()
-saveFactory fp = Store.storeFactoryFile fp =<< readIORef currentFactory
+saveFactory fp = do
+  knownRecipes <- readIORef currentRecipes
+  factSt <- readIORef currentFactory
+  Store.storeFactoryFile knownRecipes fp factSt
 
 loadFactory :: FilePath -> IO ()
-loadFactory fp =
-  Store.loadFactoryFile fp >>= \case
+loadFactory fp = do
+  knownRecipes <- readIORef currentRecipes
+  Store.loadFactoryFile knownRecipes fp >>= \case
     Left err -> putDocLn . ppLoadError $ err
     Right (warns, factSt) -> do
       putDocLn . vsep . fmap ppLoadWarning $ warns
@@ -116,40 +128,6 @@ printVerify' fact = do
         )
         <> Pp.line
 
-findRecipe :: Machine -> RecipeIdentifier -> IO Recipe
-findRecipe m rid = do
-  recipes <- readIORef currentRecipes
-  case findRecipeByKey recipes (RecipeKey m rid) of
-    Just r -> pure r
-    Nothing -> fail "recipe not found"
-
-listAllRecipes :: IO ()
-listAllRecipes = putDocLn . vsep . fmap f . Map.toList =<< readIORef currentRecipes
- where
-  f (_, rs) = vsep $ fmap ppRecipe (Map.elems rs)
-
-listRecipes :: Machine -> IO ()
-listRecipes m =
-  putDocLn
-    . vsep
-    . fmap ppRecipe
-    . Map.elems
-    . fromMaybe mempty
-    . Map.lookup m
-    =<< readIORef currentRecipes
-
-addRecipe :: Machine -> RecipeIdentifier -> NominalDiffTime -> Transfer Quantity -> IO ()
-addRecipe m rid ctime txfr =
-  modifyIORef' currentRecipes $ Map.insertWith (<>) m (Map.singleton rid r)
- where
-  r = Recipe (RecipeKey m rid) ctime txfr
-
-delRecipe :: Machine -> RecipeIdentifier -> IO ()
-delRecipe m rid = modifyIORef' currentRecipes $ Map.adjust (Map.delete rid) m
-
-resetRecipes :: IO ()
-resetRecipes = writeIORef currentRecipes builtinRecipes
-
 addCluster :: IO Recipe -> Quantity -> IO Node
 addCluster recipeIO qty = do
   c <- ClusterSt <$> recipeIO <*> pure qty
@@ -173,3 +151,66 @@ addBelt np ns i = modifyIORef' currentFactory $ Gr.insEdge (np, ns, BeltSt i)
 
 delBelt :: Node -> Node -> Item -> IO ()
 delBelt np ns i = modifyIORef' currentFactory $ Gr.delLEdge (np, ns, BeltSt i)
+
+loadRecipes :: FilePath -> IO ()
+loadRecipes fp =
+  Store.loadRecipesFile fp >>= \case
+    Left err -> putDocLn . ppLoadError $ err
+    Right (warns, (items, recipes)) -> do
+      putDocLn . vsep . fmap ppLoadWarning $ warns
+      writeIORef currentItems items
+      writeIORef currentRecipes recipes
+
+saveRecipes :: FilePath -> IO ()
+saveRecipes fp = Store.storeRecipesFile fp =<< ((,) <$> readIORef currentItems <*> readIORef currentRecipes)
+
+findRecipe :: Machine -> RecipeIdentifier -> IO Recipe
+findRecipe m rid = do
+  recipes <- readIORef currentRecipes
+  case findRecipeByKey recipes (RecipeKey m rid) of
+    Just r -> pure r
+    Nothing -> fail "recipe not found"
+
+listAllRecipes :: IO ()
+listAllRecipes = putDocLn . vsep . fmap f . Map.toList =<< readIORef currentRecipes
+ where
+  f (_, rs) = vsep $ fmap ppRecipe (Map.elems rs)
+
+listRecipes :: Machine -> IO ()
+listRecipes m =
+  putDocLn
+    . vsep
+    . fmap ppRecipe
+    . Map.elems
+    . fromMaybe mempty
+    . Map.lookup m
+    =<< readIORef currentRecipes
+
+addRecipe :: Machine -> RecipeIdentifier -> NominalDiffTime -> Transfer Quantity -> IO ()
+addRecipe m rid ctime txfr = do
+  items <- readIORef currentItems
+  let usedItems =
+        Set.fromList
+          . toListOf (to (view inputs &&& view outputs) . both . ifolded . asIndex)
+          $ txfr
+  let unregisteredItems = Set.difference usedItems items
+  unless (Set.null unregisteredItems) $ do
+    putDocLn . Pp.vsep $
+      Pp.annotate (PpT.color PpT.Red) "One or more used items are not registered:"
+        : (ppItem <$> Set.toList unregisteredItems)
+
+  modifyIORef' currentRecipes $ Map.insertWith (<>) m (Map.singleton rid r)
+ where
+  r = Recipe (RecipeKey m rid) ctime txfr
+
+delRecipe :: Machine -> RecipeIdentifier -> IO ()
+delRecipe m rid = modifyIORef' currentRecipes $ Map.adjust (Map.delete rid) m
+
+listItems :: IO ()
+listItems = putDocLn . vsep . fmap ppItem . Set.toList =<< readIORef currentItems
+
+addItem :: Item -> IO ()
+addItem = modifyIORef' currentItems . Set.insert
+
+delItem :: Item -> IO ()
+delItem = modifyIORef' currentItems . Set.delete

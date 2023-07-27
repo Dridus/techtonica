@@ -86,19 +86,14 @@ library
   hs-source-dirs: src
   exposed-modules:
     Tech.Ghci
-    Tech.Items
     Tech.Machines
     Tech.Planner
     Tech.Pretty
     Tech.Recipes
-    Tech.Recipes.Assembler
-    Tech.Recipes.Planter
-    Tech.Recipes.Thresher
     Tech.Store
     Tech.Store.AesonOptions
     Tech.Store.Orphans
     Tech.TestFixtures
-    Tech.TH
     Tech.Types
     Tech.Verify
 

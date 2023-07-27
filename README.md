@@ -150,39 +150,6 @@ state goes away without warning, so make sure to `saveFactory`.
     ghci> 
   ```
 
-- `findRecipe :: Machine -> RecipeIdentifier -> IO Recipe`
-
-  Look for a recipe, `fail`ing if not found. This looks in the current recipes state, which
-  starts out with only the builtin recipes but you can add to.
-
-  Intended for use as the first argument to `addCluster`.
-
-- `listAllRecipes :: IO ()`
-
-  List all recipes currently in state, for all machines.
-
-- `listRecipes :: Machine -> IO ()`
-
-  List all recipes currently in state, for a single machine.
-
-- `addRecipe :: Machine -> RecipeIdentifier -> NominalDiffTime -> Transfer Quantity -> IO ()`
-
-  `addRecipe machine recipeId cycleTime transferFunction`
-
-  Register a custom recipe so you can look it up by identifier later. It won't be saved except
-  as part of a factory (`saveFactory`), so only if it's in use.
-
-  You don't need to `addRecipe` a recipe, it just registers the name. You can also just mention
-  the recipe when adding a cluster.
-
-- `delRecipe :: Machine -> RecipeIdentifier -> IO ()`
-
-  Like `addRecipe`, but more violent. And with fewer questions.
-
-- `resetRecipes :: IO ()`
-
-  Reset recipes to the builtin ones.
-
 - `addCluster :: IO Recipe -> Quantity -> IO Node`
 
   Add a cluster (of machines) to the current factory. The first parameter is `IO Recipe` so
@@ -242,17 +209,65 @@ state goes away without warning, so make sure to `saveFactory`.
     ghci> 
   ```
 
+- `loadRecipes :: FilePath -> IO ()`
+
+  Load recipes and items from a YAML file.
+
+- `saveRecipes :: FilePath -> IO ()`
+
+  Save recipes and items to a YAML file.
+
+- `findRecipe :: Machine -> RecipeIdentifier -> IO Recipe`
+
+  Look for a recipe, `fail`ing if not found. This looks in the current recipes state, which
+  starts out with only the builtin recipes but you can add to.
+
+  Intended for use as the first argument to `addCluster`.
+
+- `listAllRecipes :: IO ()`
+
+  List all recipes currently in state, for all machines.
+
+- `listRecipes :: Machine -> IO ()`
+
+  List all recipes currently in state, for a single machine.
+
+- `addRecipe :: Machine -> RecipeIdentifier -> NominalDiffTime -> Transfer Quantity -> IO ()`
+
+  `addRecipe machine recipeId cycleTime transferFunction`
+
+  Register a recipe so you can look it up by identifier later.
+
+  You don't need to `addRecipe` a recipe, it just registers the name. You can also just mention
+  the recipe when adding a cluster.
+
+- `delRecipe :: Machine -> RecipeIdentifier -> IO ()`
+
+  Like `addRecipe`, but more violent. And with fewer questions.
+
+- `listItems :: IO ()`
+
+  List all registered items.
+
+- `addItem :: Item -> IO ()`
+
+  Add an item to the set of known items.
+
+- `delItem :: Item -> IO ()`
+
+  Delete an item to the set of known items.
+
 ### Machines?
 
 `:browse Tech.Machine`
 
 ### Items?
 
-`:browse Tech.Items`
+`listItems`. They come from `recipes.yaml`.
 
 ### Recipes?
 
-`listAllRecipes` or `listRecipe`. Or `:browse Tech.Recipes.*`
+`listAllRecipes` or `listRecipe`. They come from `recipes.yaml`.
 
 ## Data Model?
 

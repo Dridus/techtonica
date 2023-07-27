@@ -16,7 +16,7 @@ import Prettyprinter (Doc, annotate, indent, pretty, vsep, (<+>))
 import Prettyprinter.Render.Terminal (AnsiStyle, Color (White), color, colorDull)
 import Tech.Pretty (kw, ppFactorySt, ppLoadError, ppLoadWarning)
 import Tech.Store
-import Tech.TestFixtures (linearSt)
+import Tech.TestFixtures (linearSt, testRecipes)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (Assertion, testCase)
 import TestUtils (assertBoolDoc, assertFailureDoc, errDoc, factoryStShouldBe)
@@ -71,7 +71,7 @@ linear =
     "linear"
     [ testCase
         "load"
-        ( case loadFactory (Yaml.encode linearYaml) of
+        ( case loadFactory testRecipes (Yaml.encode linearYaml) of
             Left err -> assertFailureDoc . ppLoadError $ err
             Right (warnings, factSt) -> do
               assertBoolDoc
@@ -85,7 +85,7 @@ linear =
                 (null warnings)
               factSt `factoryStShouldBe` linearSt
         )
-    , testCase "store" (storeFactory linearSt `yamlShouldBe` linearYaml)
+    , testCase "store" (storeFactory mempty linearSt `yamlShouldBe` linearYaml)
     ]
 
 linearYaml :: Aeson.Value

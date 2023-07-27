@@ -1,22 +1,25 @@
 module Tech.Recipes where
 
+import Control.Lens (each, ix, preview, to, toListOf, view)
 import Data.Map.Strict qualified as Map
-import Tech.Machines (assembler, planter, thresher)
-import Tech.Recipes.Assembler qualified as A
-import Tech.Recipes.Planter qualified as P
-import Tech.Recipes.Thresher qualified as T
 import Tech.Types
-import Control.Lens (preview, ix)
 
 type Recipes = Map Machine (Map RecipeIdentifier Recipe)
 
-builtinRecipes :: Recipes
-builtinRecipes =
-  Map.fromList
-    [ (assembler, A.recipes)
-    , (planter, P.recipes)
-    , (thresher, T.recipes)
-    ]
-
 findRecipeByKey :: Recipes -> RecipeKey -> Maybe Recipe
 findRecipeByKey recipes (RecipeKey m rid) = preview (ix m . ix rid) recipes
+
+indexRecipes :: [Recipe] -> Recipes
+indexRecipes =
+  Map.unionsWith (<>)
+    . toListOf
+      ( each
+          . to
+            ( Map.singleton
+                <$> view (key . machine)
+                <*> (Map.singleton <$> view (key . identifier) <*> id)
+            )
+      )
+
+unindexRecipes :: Recipes -> [Recipe]
+unindexRecipes = toListOf (each . each)

@@ -1,15 +1,15 @@
 module Tech.Store where
 
-import Control.Lens (each, toListOf, view, _2, _Left, over)
+import Control.Lens (each, over, toListOf, view, _2, _Left)
 import Control.Lens.TH (makeLensesWith, underscoreFields)
 import Control.Lens.Unsound (lensProduct)
 import Data.Aeson.TH (deriveJSON)
 import Data.Graph.Inductive (LEdge, LNode, Node, labEdges, labNodes, mkGraph)
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
-import Data.Yaml (decodeEither', decodeFileEither, encode)
+import Data.Yaml (decodeEither', encode)
 import Data.Yaml qualified as Yaml
-import Tech.Recipes (builtinRecipes, findRecipeByKey)
+import Tech.Recipes (Recipes, findRecipeByKey, indexRecipes, unindexRecipes)
 import Tech.Store.AesonOptions (aesonOptions)
 import Tech.Store.Orphans ()
 import Tech.Types
@@ -41,6 +41,14 @@ data FactorySpec = FactorySpec
 deriving stock instance Show FactorySpec
 deriveJSON aesonOptions ''FactorySpec
 makeLensesWith underscoreFields ''FactorySpec
+
+data RecipesSpec = RecipesSpec
+  { _recipesSpec_items :: Set Item
+  , _recipesSpec_recipes :: [Recipe]
+  }
+deriving stock instance Show RecipesSpec
+deriveJSON aesonOptions ''RecipesSpec
+makeLensesWith underscoreFields ''RecipesSpec
 
 data InstantiateError
   = UnrecognizedRecipeIdentifier RecipeKey
@@ -74,8 +82,8 @@ beltSpecFromSt (np, ns, b) =
     , _beltSpec_item = view item b
     }
 
-factorySpecFromSt :: FactorySt -> FactorySpec
-factorySpecFromSt factSt =
+factorySpecFromSt :: Recipes -> FactorySt -> FactorySpec
+factorySpecFromSt knownRecipes factSt =
   FactorySpec
     { _factorySpec_clusters = clusterSpecFromSt <$> labNodes factSt
     , _factorySpec_belts = beltSpecFromSt <$> labEdges factSt
@@ -89,7 +97,7 @@ factorySpecFromSt factSt =
       . labNodes
       $ factSt
   _factorySpec_customRecipes =
-    Map.elems . Map.filterWithKey (const . isNothing . findRecipeByKey builtinRecipes) $ usedRecipes
+    Map.elems . Map.filterWithKey (const . isNothing . findRecipeByKey knownRecipes) $ usedRecipes
 
 instantiateBeltSpec :: BeltSpec -> LEdge BeltSt
 instantiateBeltSpec bs = (view upstream bs, view downstream bs, BeltSt (view item bs))
@@ -98,9 +106,9 @@ instantiateClusterSpec
   :: Map Machine (Map RecipeIdentifier Recipe)
   -> ClusterSpec
   -> State (Set InstantiateError) (Maybe (LNode ClusterSt))
-instantiateClusterSpec recipes clusterSpec =
+instantiateClusterSpec knownRecipes clusterSpec =
   let rk = view recipeKey clusterSpec
-  in  case findRecipeByKey recipes rk of
+  in  case findRecipeByKey knownRecipes rk of
         Nothing -> Nothing <$ modify (Set.insert (UnrecognizedRecipeIdentifier rk))
         Just r ->
           pure . Just $
@@ -118,34 +126,28 @@ instantiateCustomRecipes
 instantiateCustomRecipes rest r =
   Map.insertWith (<>) (view (key . machine) r) (Map.singleton (view (key . identifier) r) r) rest
 
-instantiateFactorySpec :: FactorySpec -> Either (Set InstantiateError) FactorySt
-instantiateFactorySpec factSpec =
+instantiateFactorySpec :: Recipes -> FactorySpec -> Either (Set InstantiateError) FactorySt
+instantiateFactorySpec knownRecipes factSpec =
   case runState go mempty of
     (factSt, errs) | Set.null errs -> Right factSt
     (_, errs) -> Left errs
  where
   go = do
-    let recipes = foldl' instantiateCustomRecipes builtinRecipes (view customRecipes factSpec)
-    nodes <- catMaybes <$> traverse (instantiateClusterSpec recipes) (view clusters factSpec)
+    let allRecipes = foldl' instantiateCustomRecipes knownRecipes (view customRecipes factSpec)
+    nodes <- catMaybes <$> traverse (instantiateClusterSpec allRecipes) (view clusters factSpec)
     let edges = instantiateBeltSpec <$> view belts factSpec
     pure $ mkGraph nodes edges
 
 storeFactorySpec :: FactorySpec -> ByteString
 storeFactorySpec = encode
 
-storeFactorySpecFile :: FilePath -> FactorySpec -> IO ()
-storeFactorySpecFile fp = writeFileBS fp . storeFactorySpec
-
 loadFactorySpec :: ByteString -> Either Yaml.ParseException FactorySpec
 loadFactorySpec = decodeEither'
 
-loadFactorySpecFile :: FilePath -> IO (Either Yaml.ParseException FactorySpec)
-loadFactorySpecFile = decodeFileEither
-
-loadFactory :: ByteString -> Either LoadError ([LoadWarning], FactorySt)
-loadFactory bs = do
+loadFactory :: Recipes -> ByteString -> Either LoadError ([LoadWarning], FactorySt)
+loadFactory knownRecipes bs = do
   factSpec <- over _Left ParseError $ loadFactorySpec bs
-  factSt <- over _Left InstantiateError $ instantiateFactorySpec factSpec
+  factSt <- over _Left InstantiateError $ instantiateFactorySpec knownRecipes factSpec
   case verifyFactorySt factSt of
     (verifyWarns, Left verifyErrs) -> Left (VerifyError (verifyErrs, verifyWarns))
     (verifyWarns, Right ()) ->
@@ -154,11 +156,38 @@ loadFactory bs = do
         , factSt
         )
 
-loadFactoryFile :: FilePath -> IO (Either LoadError ([LoadWarning], FactorySt))
-loadFactoryFile = fmap loadFactory . readFileBS
+loadFactoryFile :: Recipes -> FilePath -> IO (Either LoadError ([LoadWarning], FactorySt))
+loadFactoryFile knownRecipes = fmap (loadFactory knownRecipes) . readFileBS
 
-storeFactory :: FactorySt -> ByteString
-storeFactory = storeFactorySpec . factorySpecFromSt
+storeFactory :: Recipes -> FactorySt -> ByteString
+storeFactory knownRecipes = storeFactorySpec . factorySpecFromSt knownRecipes
 
-storeFactoryFile :: FilePath -> FactorySt -> IO ()
-storeFactoryFile fp = writeFileBS fp . storeFactory
+storeFactoryFile :: Recipes -> FilePath -> FactorySt -> IO ()
+storeFactoryFile knownRecipes fp = writeFileBS fp . storeFactory knownRecipes
+
+recipesSpecFromRecipes :: (Set Item, Recipes) -> RecipesSpec
+recipesSpecFromRecipes (its, m) = RecipesSpec its (unindexRecipes m)
+
+instantiateRecipesFromSpec :: RecipesSpec -> Recipes
+instantiateRecipesFromSpec = indexRecipes . view recipes
+
+loadRecipesSpec :: ByteString -> Either Yaml.ParseException RecipesSpec
+loadRecipesSpec = decodeEither'
+
+storeRecipesSpec :: RecipesSpec -> ByteString
+storeRecipesSpec = encode
+
+loadRecipes :: ByteString -> Either LoadError ([LoadWarning], (Set Item, Recipes))
+loadRecipes bs = do
+  recipesSpec <- over _Left ParseError $ loadRecipesSpec bs
+  let rs = instantiateRecipesFromSpec recipesSpec
+  pure (mempty, (view items recipesSpec, rs))
+
+loadRecipesFile :: FilePath -> IO (Either LoadError ([LoadWarning], (Set Item, Recipes)))
+loadRecipesFile = fmap loadRecipes . readFileBS
+
+storeRecipes :: (Set Item, Recipes) -> ByteString
+storeRecipes = storeRecipesSpec . recipesSpecFromRecipes
+
+storeRecipesFile :: FilePath -> (Set Item, Recipes) -> IO ()
+storeRecipesFile fp = writeFileBS fp . storeRecipes
