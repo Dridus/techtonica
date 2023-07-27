@@ -1,24 +1,63 @@
 items:
+- accumulator
 - biobrick
+- container
+- conveyorBelt
+- coolingSystem
 - copperComponents
 - copperFrame
 - copperIngot
+- copperOre
+- copperWire
+- electricalComponents
+- fastInserter
+- filterInserter
+- inserter
 - ironComponents
 - ironFrame
 - ironIngot
+- ironOre
 - kindlevine
 - kindlevineExtract
 - kindlevineSeed
 - kindlevineSticks
+- lightStick
 - limestone
+- longInserter
+- mechanicalComponents
 - plantmatter
 - plantmatterFiber
 - plantmatterFrame
+- powerFloor
+- processorUnit
+- shiverthornCoolant
+- shiverthornExtract
 - silverthorn
 - silverthornBuds
 - silverthornExtract
 - silverthornSeed
+- soil
+- stairs
 recipes:
+- cycleTime: 40
+  key:
+    identifier: accumulator
+    machine: assembler
+  transfer:
+    inputs:
+      copperFrame:
+        denominator: 1
+        numerator: 4
+      electricalComponents:
+        denominator: 1
+        numerator: 20
+      kindlevineExtract:
+        denominator: 1
+        numerator: 20
+    outputs:
+      accumulator:
+        denominator: 1
+        numerator: 2
 - cycleTime: 20
   key:
     identifier: biobrick
@@ -35,6 +74,51 @@ recipes:
       biobrick:
         denominator: 1
         numerator: 10
+- cycleTime: 12
+  key:
+    identifier: container
+    machine: assembler
+  transfer:
+    inputs:
+      ironComponents:
+        denominator: 1
+        numerator: 8
+      ironIngot:
+        denominator: 1
+        numerator: 6
+    outputs:
+      container:
+        denominator: 1
+        numerator: 2
+- cycleTime: 4
+  key:
+    identifier: conveyorBelt
+    machine: assembler
+  transfer:
+    inputs:
+      mechanicalComponents:
+        denominator: 1
+        numerator: 3
+    outputs:
+      conveyorBelt:
+        denominator: 1
+        numerator: 10
+- cycleTime: 36
+  key:
+    identifier: coolingSystem
+    machine: assembler
+  transfer:
+    inputs:
+      mechanicalComponents:
+        denominator: 1
+        numerator: 1
+      shiverthornCoolant:
+        denominator: 1
+        numerator: 2
+    outputs:
+      coolingSystem:
+        denominator: 1
+        numerator: 2
 - cycleTime: 8
   key:
     identifier: copperComponents
@@ -59,6 +143,83 @@ recipes:
         numerator: 4
     outputs:
       copperFrame:
+        denominator: 1
+        numerator: 2
+- cycleTime: 24
+  key:
+    identifier: copperWire
+    machine: assembler
+  transfer:
+    inputs:
+      copperIngot:
+        denominator: 1
+        numerator: 1
+    outputs:
+      copperWire:
+        denominator: 1
+        numerator: 8
+- cycleTime: 10
+  key:
+    identifier: electricalComponents
+    machine: assembler
+  transfer:
+    inputs:
+      copperWire:
+        denominator: 1
+        numerator: 3
+      ironIngot:
+        denominator: 1
+        numerator: 1
+    outputs:
+      electricalComponents:
+        denominator: 1
+        numerator: 6
+- cycleTime: 8.8
+  key:
+    identifier: fastInserter
+    machine: assembler
+  transfer:
+    inputs:
+      inserter:
+        denominator: 1
+        numerator: 1
+      kindlevineExtract:
+        denominator: 1
+        numerator: 2
+      processorUnit:
+        denominator: 1
+        numerator: 1
+    outputs:
+      fastInserter:
+        denominator: 1
+        numerator: 2
+- cycleTime: 8
+  key:
+    identifier: filterInserter
+    machine: assembler
+  transfer:
+    inputs:
+      electricalComponents:
+        denominator: 1
+        numerator: 5
+      inserter:
+        denominator: 1
+        numerator: 1
+    outputs:
+      filterInserter:
+        denominator: 1
+        numerator: 2
+- cycleTime: 4
+  key:
+    identifier: inserter
+    machine: assembler
+  transfer:
+    inputs:
+      mechanicalComponents:
+        denominator: 1
+        numerator: 7
+    outputs:
+      inserter:
         denominator: 1
         numerator: 2
 - cycleTime: 4
@@ -87,6 +248,54 @@ recipes:
       ironFrame:
         denominator: 1
         numerator: 2
+- cycleTime: 6
+  key:
+    identifier: lightStick
+    machine: assembler
+  transfer:
+    inputs:
+      copperWire:
+        denominator: 1
+        numerator: 1
+      plantmatterFiber:
+        denominator: 1
+        numerator: 3
+    outputs:
+      lightStick:
+        denominator: 1
+        numerator: 4
+- cycleTime: 6
+  key:
+    identifier: longInserter
+    machine: assembler
+  transfer:
+    inputs:
+      inserter:
+        denominator: 1
+        numerator: 3
+      mechanicalComponents:
+        denominator: 1
+        numerator: 3
+    outputs:
+      longInserter:
+        denominator: 1
+        numerator: 2
+- cycleTime: 12
+  key:
+    identifier: mechanicalComponents
+    machine: assembler
+  transfer:
+    inputs:
+      copperIngot:
+        denominator: 1
+        numerator: 2
+      ironIngot:
+        denominator: 1
+        numerator: 3
+    outputs:
+      mechanicalComponents:
+        denominator: 1
+        numerator: 4
 - cycleTime: 3
   key:
     identifier: plantmatter
@@ -113,6 +322,89 @@ recipes:
       plantmatterFrame:
         denominator: 1
         numerator: 2
+- cycleTime: 2
+  key:
+    identifier: powerFloor
+    machine: assembler
+  transfer:
+    inputs:
+      copperWire:
+        denominator: 1
+        numerator: 1
+      ironIngot:
+        denominator: 1
+        numerator: 2
+    outputs:
+      powerFloor:
+        denominator: 1
+        numerator: 10
+- cycleTime: 24
+  key:
+    identifier: processorUnit
+    machine: assembler
+  transfer:
+    inputs:
+      electricalComponents:
+        denominator: 1
+        numerator: 4
+      plantmatterFrame:
+        denominator: 1
+        numerator: 3
+    outputs:
+      processorUnit:
+        denominator: 1
+        numerator: 2
+- cycleTime: 5
+  key:
+    identifier: shiverthornCoolant
+    machine: assembler
+  transfer:
+    inputs:
+      ironComponents:
+        denominator: 1
+        numerator: 1
+      limestone:
+        denominator: 1
+        numerator: 7
+      shiverthornExtract:
+        denominator: 1
+        numerator: 2
+    outputs:
+      shiverthornCoolant:
+        denominator: 1
+        numerator: 2
+- cycleTime: 3.2
+  key:
+    identifier: soil
+    machine: assembler
+  transfer:
+    inputs:
+      limestone:
+        denominator: 1
+        numerator: 40
+      plantmatter:
+        denominator: 1
+        numerator: 10
+    outputs:
+      soil:
+        denominator: 1
+        numerator: 2
+- cycleTime: 2
+  key:
+    identifier: stairs
+    machine: assembler
+  transfer:
+    inputs:
+      copperWire:
+        denominator: 1
+        numerator: 1
+      ironIngot:
+        denominator: 1
+        numerator: 2
+    outputs:
+      stairs:
+        denominator: 1
+        numerator: 10
 - cycleTime: 130
   key:
     identifier: kindlevine
@@ -137,6 +429,32 @@ recipes:
         numerator: 1
     outputs:
       silverthorn:
+        denominator: 1
+        numerator: 1
+- cycleTime: 3.2
+  key:
+    identifier: copperIngot
+    machine: smelter
+  transfer:
+    inputs:
+      copperOre:
+        denominator: 1
+        numerator: 2
+    outputs:
+      copperIngot:
+        denominator: 1
+        numerator: 1
+- cycleTime: 3.3
+  key:
+    identifier: ironIngot
+    machine: smelter
+  transfer:
+    inputs:
+      ironOre:
+        denominator: 1
+        numerator: 2
+    outputs:
+      ironIngot:
         denominator: 1
         numerator: 1
 - cycleTime: 6
