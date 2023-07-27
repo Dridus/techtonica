@@ -432,4 +432,5 @@ This uses flakes, so you'll need a decently recent nix, and maybe to enable the 
 3. Inserter capacity.
 4. Planning as in "I want item X at Y/min, tell me how".
 5. Containers or other similar "magic sinks".
-
+6. Renaming.
+7. Innate parallelism of machines (planter, e.g.).

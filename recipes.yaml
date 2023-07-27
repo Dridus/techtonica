@@ -30,12 +30,12 @@ items:
 - plantmatterFrame
 - powerFloor
 - processorUnit
+- researchCore380nm
+- shiverthorn
+- shiverthornBuds
 - shiverthornCoolant
 - shiverthornExtract
-- silverthorn
-- silverthornBuds
-- silverthornExtract
-- silverthornSeed
+- shiverthornSeed
 - soil
 - stairs
 recipes:
@@ -354,6 +354,22 @@ recipes:
       processorUnit:
         denominator: 1
         numerator: 2
+- cycleTime: 9
+  key:
+    identifier: researchCore380nm
+    machine: assembler
+  transfer:
+    inputs:
+      copperWire:
+        denominator: 1
+        numerator: 2
+      mechanicalComponents:
+        denominator: 1
+        numerator: 3
+    outputs:
+      researchCore380nm:
+        denominator: 1
+        numerator: 2
 - cycleTime: 5
   key:
     identifier: shiverthornCoolant
@@ -420,15 +436,15 @@ recipes:
         numerator: 1
 - cycleTime: 130
   key:
-    identifier: silverthorn
+    identifier: shiverthorn
     machine: planter
   transfer:
     inputs:
-      silverthornSeed:
+      shiverthornSeed:
         denominator: 1
         numerator: 1
     outputs:
-      silverthorn:
+      shiverthorn:
         denominator: 1
         numerator: 1
 - cycleTime: 3.2
@@ -491,33 +507,33 @@ recipes:
         numerator: 4
 - cycleTime: 5.75
   key:
-    identifier: silverthorn
+    identifier: shiverthorn
     machine: thresher
   transfer:
     inputs:
-      silverthorn:
+      shiverthorn:
         denominator: 1
         numerator: 1
     outputs:
-      silverthornBuds:
+      shiverthornBuds:
         denominator: 1
         numerator: 4
-      silverthornSeed:
+      shiverthornSeed:
         denominator: 1
         numerator: 1
 - cycleTime: 3
   key:
-    identifier: silverthornBuds
+    identifier: shiverthornBuds
     machine: thresher
   transfer:
     inputs:
-      silverthornBuds:
+      shiverthornBuds:
         denominator: 1
         numerator: 1
     outputs:
       plantmatter:
         denominator: 1
         numerator: 5
-      silverthornExtract:
+      shiverthornExtract:
         denominator: 1
         numerator: 4
