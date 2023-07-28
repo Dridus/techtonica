@@ -1,17 +1,17 @@
 module Tech.Ghci.Recipes where
 
-import Control.Lens (andOf, both, has, ix, over, view, preview, set)
+import Control.Lens (andOf, both, has, ix, over, preview, set)
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Time.Clock (NominalDiffTime)
-import Prettyprinter (vsep)
-import Tech.Ghci.State (currentItems, currentRecipes, currentState, items, recipes)
-import Tech.Ghci.Utils (putDocLn, printVerify)
-import Tech.Pretty (ppItem, ppRecipe, ppLoadWarning, ppLoadError)
+import Prettyprinter (viaShow, vsep, (<+>))
+import Tech.Ghci.State (currentItems, currentRecipes, items, recipes, updateState)
+import Tech.Ghci.Utils (printVerify, putDocLn)
+import Tech.Pretty (kw, ppItem, ppLoadError, ppLoadWarning, ppMachine, ppRecipe)
 import Tech.Recipes (filterRecipes, findRecipeByKey, insertRecipe)
+import Tech.Store (loadRecipesFile, storeRecipesFile)
 import Tech.Types
 import Tech.Verify qualified as Verify
-import Tech.Store (storeRecipesFile, loadRecipesFile)
 import Prelude hiding (state)
 
 loadRecipes :: FilePath -> IO ()
@@ -20,12 +20,10 @@ loadRecipes fp =
     Left err -> putDocLn . ppLoadError $ err
     Right (warns, (its, rs)) -> do
       putDocLn . vsep . fmap ppLoadWarning $ warns
-      modifyIORef' currentState $ set items its . set recipes rs
+      updateState (kw "loadRecipes" <+> viaShow fp) $ set items its . set recipes rs
 
 saveRecipes :: FilePath -> IO ()
-saveRecipes fp = do
-  state <- readIORef currentState
-  storeRecipesFile fp (view items &&& view recipes $ state)
+saveRecipes fp = storeRecipesFile fp =<< ((,) <$> currentItems <*> currentRecipes)
 
 findRecipe :: Machine -> RecipeIdentifier -> IO Recipe
 findRecipe m rid = do
@@ -62,8 +60,8 @@ addRecipe m rid ctime txfr = do
   whenM (has (ix m . ix rid) <$> currentRecipes) $
     fail "recipe already exists. maybe editRecipe?"
   whenM (andOf both <$> verifyRecipe r) $
-    modifyIORef' currentState . over recipes $
-      insertRecipe r
+    updateState (kw "addRecipe" <+> ppMachine m <+> viaShow rid) $
+      over recipes (insertRecipe r)
  where
   r = Recipe (RecipeKey m rid) ctime txfr
 
@@ -71,17 +69,20 @@ editRecipe :: Machine -> RecipeIdentifier -> (Recipe -> Recipe) -> IO ()
 editRecipe m rid f = do
   r <- maybe (fail "recipe not found") pure . preview (ix m . ix rid) =<< currentRecipes
   let r' = f r
-  whenM (andOf both <$> verifyRecipe r') $ do
-    modifyIORef' currentState . over recipes $ insertRecipe r'
+  whenM (andOf both <$> verifyRecipe r') $
+    updateState (kw "editRecipe" <+> ppMachine m <+> viaShow rid) $
+      over recipes (insertRecipe r')
 
 delRecipe :: Machine -> RecipeIdentifier -> IO ()
-delRecipe m rid = modifyIORef' currentState . over recipes $ Map.adjust (Map.delete rid) m
+delRecipe m rid =
+  updateState (kw "delRecipe" <+> ppMachine m <+> viaShow rid) $
+    over recipes (Map.adjust (Map.delete rid) m)
 
 listItems :: IO ()
 listItems = putDocLn . vsep . fmap ppItem . Set.toList =<< currentItems
 
 addItem :: Item -> IO ()
-addItem = modifyIORef' currentState . over items . Set.insert
+addItem i = updateState (kw "addItem" <+> viaShow i) $ over items (Set.insert i)
 
 delItem :: Item -> IO ()
-delItem = modifyIORef' currentState . over items . Set.delete
+delItem i = updateState (kw "delItem" <+> viaShow i) $ over items (Set.delete i)

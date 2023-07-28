@@ -32,7 +32,15 @@ import Tech.Ghci.Recipes as Export (
   loadRecipes,
   saveRecipes,
  )
-import Tech.Ghci.State as Export (currentFactory, currentItems, currentRecipes, resetState)
+import Tech.Ghci.State as Export (
+  currentFactory,
+  currentItems,
+  currentRecipes,
+  printChangelog,
+  redo,
+  resetState,
+  undo,
+ )
 import Tech.Ghci.Utils as Export (putDocLn)
 import Tech.Machines as Export
 import Tech.Pretty as Export
