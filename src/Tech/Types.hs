@@ -130,23 +130,11 @@ deriving stock instance Ord q => Ord (Transfer q)
 deriving stock instance Show q => Show (Transfer q)
 makeLensesWith underscoreFields ''Transfer
 
-infix 4 :=>=:, :->=:, :=>-:, :->-:
-pattern (:=>=:) :: Image q -> Image q -> Transfer q
-pattern ins :=>=: outs <- Transfer ins outs
+infix 4 :>>:
+pattern (:>>:) :: [(Item, q)] -> [(Item, q)] -> Transfer q
+pattern ins :>>: outs <- Transfer (Many ins) (Many outs)
   where
-    ins :=>=: outs = Transfer ins outs
-pattern (:=>-:) :: Image q -> (Item, q) -> Transfer q
-pattern ins :=>-: out1 <- Transfer ins (One out1)
-  where
-    ins :=>-: out1 = Transfer ins (One out1)
-pattern (:->=:) :: (Item, q) -> Image q -> Transfer q
-pattern in1 :->=: outs <- Transfer (One in1) outs
-  where
-    in1 :->=: outs = Transfer (One in1) outs
-pattern (:->-:) :: (Item, q) -> (Item, q) -> Transfer q
-pattern in1 :->-: out1 <- Transfer (One in1) (One out1)
-  where
-    in1 :->-: out1 = Transfer (One in1) (One out1)
+    ins :>>: outs = Transfer (Many ins) (Many outs)
 
 infixr 7 `mulT`
 mulT :: (Wrapped q, Unwrapped q ~ n, Num n) => n -> Transfer q -> Transfer q

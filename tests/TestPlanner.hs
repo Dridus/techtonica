@@ -54,14 +54,14 @@ testAssignClusterRates =
     Recipe
       (RecipeKey testMachine "trivial")
       time
-      ((testItemA, Quantity 10.0) :->-: (testItemB, Quantity 1.0))
+      ([(testItemA, Quantity 10.0)] :>>: [(testItemB, Quantity 1.0)])
   trivialClDy :: NominalDiffTime -> Quantity -> Rate -> Rate -> LNode ClusterDy
   trivialClDy time qty ein eout =
     (1,) $
       ClusterDy
         (trivialRecipe time)
         qty
-        ((testItemA, ein) :->-: (testItemB, eout))
+        ([(testItemA, ein)] :>>: [(testItemB, eout)])
   trivialClSt :: NominalDiffTime -> Quantity -> LNode ClusterSt
   trivialClSt time qty = (1,) $ ClusterSt (trivialRecipe time) qty
   edges :: [LEdge ()]

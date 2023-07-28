@@ -18,8 +18,8 @@ testMachine :: Machine
 testMachine = Machine "test"
 
 testTransferA1B1, testTransferB1C1 :: Num q => Transfer q
-testTransferA1B1 = (testItemA, 1) :->-: (testItemB, 1)
-testTransferB1C1 = (testItemB, 1) :->-: (testItemC, 1)
+testTransferA1B1 = [(testItemA, 1)] :>>: [(testItemB, 1)]
+testTransferB1C1 = [(testItemB, 1)] :>>: [(testItemC, 1)]
 
 testRecipeA1B1, testRecipeB1C1 :: Recipe
 testRecipeA1B1 = Recipe (RecipeKey testMachine "a1b1") 1 testTransferA1B1

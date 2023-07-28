@@ -335,13 +335,13 @@ come to visit if you change a recipe's definition but not its key.
 synonyms. `Image`s are in turn maps of `Item` to some quantity `q`, which is typically `Quantity`
 in `Recipe`s and `Rate` for `ClusterDy` or `BeltDy`.
 
-`Transfer`s and thus `Recipe`s are typically constructed using pattern synonyms to simplify down
+`Transfer`s and thus `Recipe`s are typically constructed using a pattern synonyms to simplify down
 from the general case of `Map Item Quantity -> Map Item Quantity`:
 
 ```haskell
-ghci> putDocLn . ppTransfer ppQuantity $ (ironIngot, 1) :->-: (ironComponents, 1)
+ghci> putDocLn . ppTransfer ppQuantity $ [(ironIngot, 1)] :>>: [(ironComponents, 1)]
 1 ironIngot >-> 1 ironComponents
-ghci> putDocLn . ppTransfer ppQuantity $ (kindlevine, 1) :->=: Pair (kindlevineSticks, 1) (kindlevineSeed, 1)
+ghci> putDocLn . ppTransfer ppQuantity $ [(kindlevine, 1)] :>>: [(kindlevineSticks, 1), (kindlevineSeed, 1)]
 1 kindlevine >-> {1 kindlevineSeed, 1 kindlevineSticks}
 ```
 
@@ -349,15 +349,15 @@ ghci> putDocLn . ppTransfer ppQuantity $ (kindlevine, 1) :->=: Pair (kindlevineS
 recipe :: RecipeIdentifier -> NominalDiffTime -> Transfer Quantity -> Recipe
 recipe rid = Recipe (RecipeKey thresher rid)
 
-recipe' :: (Item, Quantity) -> NominalDiffTime -> Image Quantity -> Recipe
-recipe' src@(i, _) time outs = recipe (RecipeIdentifier . unItem $ i) time (src :->=: outs)
+recipe' :: (Item, Quantity) -> NominalDiffTime -> [(Item, Quantity)] -> Recipe
+recipe' src@(i, _) time outs = recipe (RecipeIdentifier . unItem $ i) time ([src] :>>: outs)
 
 kindlevine, kindlevineSticks :: Recipe
 kindlevine = recipe' (I.kindlevine, 1) 6.00 (Pair (I.kindlevineSeed, 1) (I.kindlevineSticks, 4))
 kindlevineSticks = recipe' (I.kindlevineSticks, 1) 3.00 (Pair (I.kindlevineExtract, 4) (I.plantmatterFiber, 4))
 ```
 
-The `Transfer` synonyms are:
+The `Transfer` synonym is `:>>:` and takes a list of pairs as input and output.
 
 - `(i, q) :->-: (i, q)`: one item (type) in, one item out.
 - `(i, q) :->=: image`: one item in, potentially many out.
@@ -434,3 +434,4 @@ This uses flakes, so you'll need a decently recent nix, and maybe to enable the 
 5. Containers or other similar "magic sinks".
 6. Renaming.
 7. Innate parallelism of machines (planter, e.g.).
+8. Global speed factors (Assembling speed techs, e.g.).
