@@ -86,6 +86,11 @@ library
   hs-source-dirs: src
   exposed-modules:
     Tech.Ghci
+    Tech.Ghci.Factory
+    Tech.Ghci.Planning
+    Tech.Ghci.Recipes
+    Tech.Ghci.State
+    Tech.Ghci.Utils
     Tech.Machines
     Tech.Planner
     Tech.Pretty

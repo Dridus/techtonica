@@ -50,7 +50,7 @@ deriving stock instance Show RecipesSpec
 deriveJSON aesonOptions ''RecipesSpec
 makeLensesWith underscoreFields ''RecipesSpec
 
-data InstantiateError
+newtype InstantiateError
   = UnrecognizedRecipeIdentifier RecipeKey
 deriving stock instance Eq InstantiateError
 deriving stock instance Ord InstantiateError
@@ -62,7 +62,7 @@ data LoadError
   | VerifyError (Set VerifyError, Set VerifyWarning)
 deriving stock instance Show LoadError
 
-data LoadWarning
+newtype LoadWarning
   = VerifyWarning VerifyWarning
 deriving stock instance Show LoadWarning
 

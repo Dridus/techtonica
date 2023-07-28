@@ -1,6 +1,6 @@
 module Tech.Recipes where
 
-import Control.Lens (each, ix, preview, to, toListOf, view)
+import Control.Lens (each, filtered, has, ix, preview, to, toListOf, view)
 import Data.Map.Strict qualified as Map
 import Tech.Types
 
@@ -27,3 +27,12 @@ indexRecipes =
 
 unindexRecipes :: Recipes -> [Recipe]
 unindexRecipes = toListOf (each . each)
+
+filterRecipes :: (Recipe -> Bool) -> Recipes -> [Recipe]
+filterRecipes p = toListOf (each . each . filtered p)
+
+producing :: Item -> Recipe -> Bool
+producing i = has $ transfer . outputs . ix i
+
+consuming :: Item -> Recipe -> Bool
+consuming i = has $ transfer . inputs . ix i
