@@ -1,5 +1,6 @@
 items:
 - accumulator
+- assembler
 - biobrick
 - container
 - conveyorBelt
@@ -9,6 +10,8 @@ items:
 - copperIngot
 - copperOre
 - copperWire
+- coreComposer
+- crankGenerator
 - electricalComponents
 - fastInserter
 - filterInserter
@@ -25,6 +28,9 @@ items:
 - limestone
 - longInserter
 - mechanicalComponents
+- miningCharge
+- miningDrill
+- planter
 - plantmatter
 - plantmatterFiber
 - plantmatterFrame
@@ -36,8 +42,11 @@ items:
 - shiverthornCoolant
 - shiverthornExtract
 - shiverthornSeed
+- smelter
 - soil
 - stairs
+- thesher
+- waterWheel
 recipes:
 - cycleTime: 40
   key:
@@ -296,6 +305,41 @@ recipes:
       mechanicalComponents:
         denominator: 1
         numerator: 4
+- cycleTime: 11
+  key:
+    identifier: miningCharge
+    machine: assembler
+  transfer:
+    inputs:
+      kindlevineExtract:
+        denominator: 1
+        numerator: 5
+      plantmatterFrame:
+        denominator: 1
+        numerator: 2
+      shiverthornExtract:
+        denominator: 1
+        numerator: 4
+    outputs:
+      miningCharge:
+        denominator: 1
+        numerator: 2
+- cycleTime: 24
+  key:
+    identifier: miningDrill
+    machine: assembler
+  transfer:
+    inputs:
+      ironComponents:
+        denominator: 1
+        numerator: 15
+      ironFrame:
+        denominator: 1
+        numerator: 3
+    outputs:
+      miningDrill:
+        denominator: 1
+        numerator: 2
 - cycleTime: 3
   key:
     identifier: plantmatter
@@ -447,7 +491,7 @@ recipes:
       shiverthorn:
         denominator: 1
         numerator: 1
-- cycleTime: 3.2
+- cycleTime: 3.6
   key:
     identifier: copperIngot
     machine: smelter
@@ -460,7 +504,7 @@ recipes:
       copperIngot:
         denominator: 1
         numerator: 1
-- cycleTime: 3.3
+- cycleTime: 3.6
   key:
     identifier: ironIngot
     machine: smelter
