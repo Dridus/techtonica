@@ -8,15 +8,12 @@ import Data.Semialign.Indexed (ialignWith)
 import Data.Text (unpack)
 import Data.These (These (That, These, This))
 import Data.Time.Clock (nominalDiffTimeToSeconds)
-import Prettyprinter (Doc, align, annotate, defaultLayoutOptions, indent, layoutPretty, pretty, viaShow, vsep, (<+>))
-import Prettyprinter.Render.Terminal (AnsiStyle, Color (Red), color, renderStrict)
+import Prettyprinter (Doc, align, defaultLayoutOptions, indent, layoutPretty, pretty, viaShow, vsep, (<+>))
+import Prettyprinter.Render.Terminal (AnsiStyle, renderStrict)
 import Tech.Pretty qualified as P
 import Tech.Types
 import Test.QuickCheck (Property, conjoin, counterexample, (.&&.), (===))
 import Test.Tasty.HUnit (Assertion, assertBool, assertFailure)
-
-errDoc :: Doc AnsiStyle -> Doc AnsiStyle
-errDoc = annotate (color Red)
 
 neOp :: Doc AnsiStyle
 neOp = P.kw "/="
@@ -134,8 +131,8 @@ feqTransferFixed
   -> Transfer q
   -> Bool
 feqTransferFixed a b =
-  (feqImageFixed `on` view inputs) a b
-    && (feqImageFixed `on` view outputs) a b
+  (feqImageFixed `on` view fInputs) a b
+    && (feqImageFixed `on` view fOutputs) a b
 
 infix 4 `eqTransferRational`
 eqTransferRational
@@ -145,8 +142,8 @@ eqTransferRational
   -> Transfer q
   -> Bool
 eqTransferRational a b =
-  (eqImageRational `on` view inputs) a b
-    && (eqImageRational `on` view outputs) a b
+  (eqImageRational `on` view fInputs) a b
+    && (eqImageRational `on` view fOutputs) a b
 
 infix 4 `peqTransferFixed`
 peqTransferFixed
@@ -156,8 +153,8 @@ peqTransferFixed
   -> Transfer q
   -> Property
 peqTransferFixed a b =
-  (peqImageFixed `on` view inputs) a b
-    .&&. (peqImageFixed `on` view outputs) a b
+  (peqImageFixed `on` view fInputs) a b
+    .&&. (peqImageFixed `on` view fOutputs) a b
 
 infix 4 `peqTransferRational`
 peqTransferRational
@@ -167,22 +164,22 @@ peqTransferRational
   -> Transfer q
   -> Property
 peqTransferRational a b =
-  (peqImageRational `on` view inputs) a b
-    .&&. (peqImageRational `on` view outputs) a b
+  (peqImageRational `on` view fInputs) a b
+    .&&. (peqImageRational `on` view fOutputs) a b
 
 infix 4 `feqRecipe`
 feqRecipe :: Recipe -> Recipe -> Bool
 feqRecipe a b =
-  (feqFixedDeci `on` nominalDiffTimeToSeconds . view cycleTime) a b
-    && ((==) `on` view key) a b
-    && (eqTransferRational `on` view transfer) a b
+  (feqFixedDeci `on` nominalDiffTimeToSeconds . view fCycleTime) a b
+    && ((==) `on` view fKey) a b
+    && (eqTransferRational `on` view fTransfer) a b
 
 infix 4 `peqRecipe`
 peqRecipe :: Recipe -> Recipe -> Property
 peqRecipe a b =
-  (peqFixedDeci `on` nominalDiffTimeToSeconds . view cycleTime) a b
-    .&&. ((===) `on` view key) a b
-    .&&. (peqTransferRational `on` view transfer) a b
+  (peqFixedDeci `on` nominalDiffTimeToSeconds . view fCycleTime) a b
+    .&&. ((===) `on` view fKey) a b
+    .&&. (peqTransferRational `on` view fTransfer) a b
 
 beltStShouldBe :: HasCallStack => BeltSt -> BeltSt -> Assertion
 beltStShouldBe a b =
@@ -194,9 +191,9 @@ beltStShouldBe a b =
 infix 4 `feqBeltDy`
 feqBeltDy :: BeltDy -> BeltDy -> Bool
 feqBeltDy a b =
-  ((==) `on` view item) a b
-    && ((==) `on` view entering) a b
-    && ((==) `on` view exiting) a b
+  ((==) `on` view fItem) a b
+    && ((==) `on` view fEntering) a b
+    && ((==) `on` view fExiting) a b
 
 beltDyShouldBe :: HasCallStack => BeltDy -> BeltDy -> Assertion
 beltDyShouldBe a b =
@@ -208,8 +205,8 @@ beltDyShouldBe a b =
 infix 4 `feqClusterSt`
 feqClusterSt :: ClusterSt -> ClusterSt -> Bool
 feqClusterSt a b =
-  (feqRecipe `on` view recipe) a b
-    && ((==) `on` view quantity) a b
+  (feqRecipe `on` view fRecipe) a b
+    && ((==) `on` view fQuantity) a b
 
 clusterStShouldBe :: HasCallStack => ClusterSt -> ClusterSt -> Assertion
 clusterStShouldBe a b =
@@ -221,9 +218,9 @@ clusterStShouldBe a b =
 infix 4 `feqClusterDy`
 feqClusterDy :: ClusterDy -> ClusterDy -> Bool
 feqClusterDy a b =
-  (feqRecipe `on` view recipe) a b
-    && ((==) `on` view quantity) a b
-    && (eqTransferRational `on` view transfer) a b
+  (feqRecipe `on` view fRecipe) a b
+    && ((==) `on` view fQuantity) a b
+    && (eqTransferRational `on` view fTransfer) a b
 
 clusterDyShouldBe :: HasCallStack => ClusterDy -> ClusterDy -> Assertion
 clusterDyShouldBe a b =
@@ -332,8 +329,8 @@ peqGraph eqA ppA bkf eqB ppB ga gb =
 
 factoryStShouldBe :: HasCallStack => FactorySt -> FactorySt -> Assertion
 factoryStShouldBe =
-  graphShouldBe (==) P.ppAnonymousClusterSt (view item) (==) P.ppAnonymousBeltSt
+  graphShouldBe (==) P.ppAnonymousClusterSt (view fItem) (==) P.ppAnonymousBeltSt
 
 factoryDyShouldBe :: HasCallStack => FactoryDy -> FactoryDy -> Assertion
 factoryDyShouldBe =
-  graphShouldBe feqClusterDy P.ppAnonymousClusterDy (view item) feqBeltDy P.ppAnonymousBeltDy
+  graphShouldBe feqClusterDy P.ppAnonymousClusterDy (view fItem) feqBeltDy P.ppAnonymousBeltDy

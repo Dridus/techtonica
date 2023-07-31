@@ -79,11 +79,11 @@ verifyOneBeltItems :: LEdge BeltSt -> VerifyM ()
 verifyOneBeltItems e@(np, ns, b) = do
   tryVerify_ $ do
     cl <- needCluster np (BeltUpNodeInvalid e)
-    unless (has (recipe . transfer . outputs . ix (view item b)) cl) $
+    unless (has (fRecipe . fTransfer . fOutputs . ix (view fItem b)) cl) $
       raiseVerifyWarning (BeltItemNotOutputByUp (np, cl) e)
   tryVerify_ $ do
     cl <- needCluster ns (BeltDownNodeInvalid e)
-    unless (has (recipe . transfer . inputs . ix (view item b)) cl) $
+    unless (has (fRecipe . fTransfer . fInputs . ix (view fItem b)) cl) $
       raiseVerifyWarning (BeltItemNotInputForDown (ns, cl) e)
 
 verifyRecipe :: Set Item -> Recipe -> (Set VerifyWarning, Either (Set VerifyError) ())
@@ -93,6 +93,6 @@ verifyRecipe knownItems r
  where
   usedItems =
     Set.fromList
-      . toListOf (transfer . to (view inputs &&& view outputs) . both . ifolded . asIndex)
+      . toListOf (fTransfer . to (view fInputs &&& view fOutputs) . both . ifolded . asIndex)
       $ r
   unregisteredItems = Set.difference usedItems knownItems

@@ -1,12 +1,14 @@
 module Tech.Types where
 
 import Control.Lens (Wrapped (type Unwrapped), each, over, view, _Wrapped')
-import Control.Lens.TH (makeLensesWith, makeWrapped, underscoreFields)
+import Control.Lens.TH (makeLensesWith, makeWrapped)
 import Data.Align (alignWith)
-import Data.Graph.Inductive (Gr)
+import Data.Graph.Inductive (Gr, Node, nodeRange)
+import Data.Graph.Inductive.Graph qualified as Gr
 import Data.Map.Strict qualified as Map
 import Data.These (fromThese)
 import Data.Time (NominalDiffTime)
+import Tech.LensOptions (techFields)
 import Text.Show (Show (showsPrec), showParen, showString)
 
 -- * Symbols
@@ -128,7 +130,7 @@ deriving stock instance Eq q => Eq (Transfer q)
 deriving stock instance Functor Transfer
 deriving stock instance Ord q => Ord (Transfer q)
 deriving stock instance Show q => Show (Transfer q)
-makeLensesWith underscoreFields ''Transfer
+makeLensesWith techFields ''Transfer
 
 infix 4 :>>:
 pattern (:>>:) :: [(Item, q)] -> [(Item, q)] -> Transfer q
@@ -138,11 +140,11 @@ pattern ins :>>: outs <- Transfer (Many ins) (Many outs)
 
 infixr 7 `mulT`
 mulT :: (Wrapped q, Unwrapped q ~ n, Num n) => n -> Transfer q -> Transfer q
-mulT (mulI -> f) = over inputs f . over outputs f
+mulT (mulI -> f) = over fInputs f . over fOutputs f
 
 infixr 7 `divT`
 divT :: (Wrapped q, Unwrapped q ~ n, Fractional n) => Transfer q -> n -> Transfer q
-divT t n = over inputs (`divI` n) . over outputs (`divI` n) $ t
+divT t n = over fInputs (`divI` n) . over fOutputs (`divI` n) $ t
 
 -- ** Machine Recipes
 
@@ -153,26 +155,26 @@ data RecipeKey = RecipeKey
 deriving stock instance Eq RecipeKey
 deriving stock instance Ord RecipeKey
 deriving stock instance Show RecipeKey
-makeLensesWith underscoreFields ''RecipeKey
+makeLensesWith techFields ''RecipeKey
 
--- Invariant key -> (cycleTime, transfer)
+-- Invariant: key -> (cycleTime, transfer)
 data Recipe = Recipe
   { _recipe_key :: RecipeKey
   , _recipe_cycleTime :: NominalDiffTime
   , _recipe_transfer :: Transfer Quantity
   }
 deriving stock instance Show Recipe
-makeLensesWith underscoreFields ''Recipe
-instance Eq Recipe where (==) = (==) `on` view key
-instance Ord Recipe where compare = compare `on` view key
+makeLensesWith techFields ''Recipe
+instance Eq Recipe where (==) = (==) `on` view fKey
+instance Ord Recipe where compare = compare `on` view fKey
 
 infixr 7 `mulR`
 mulR :: Rational -> Recipe -> Recipe
-mulR = over transfer . mulT
+mulR = over fTransfer . mulT
 
 infixr 7 `divR`
 divR :: Recipe -> Rational -> Recipe
-divR r n = over transfer (`divT` n) r
+divR r n = over fTransfer (`divT` n) r
 
 -- * Factories
 
@@ -186,25 +188,26 @@ newtype BeltSt = BeltSt
 deriving stock instance Eq BeltSt
 deriving stock instance Ord BeltSt
 deriving stock instance Show BeltSt
-makeLensesWith underscoreFields ''BeltSt
+makeLensesWith techFields ''BeltSt
 
 -- *** Belt dynamically
 
 data BeltDy = BeltDy
-  { _beltDy_item :: Item
+  { _beltDy_static :: BeltSt
   , _beltDy_entering :: Rate
   , _beltDy_exiting :: Rate
   }
 deriving stock instance Eq BeltDy
 deriving stock instance Ord BeltDy
 deriving stock instance Show BeltDy
-makeLensesWith underscoreFields ''BeltDy
+makeLensesWith techFields ''BeltDy
+instance Has_fItem BeltDy Item where fItem = fStatic . fItem
 
 shortfall :: BeltDy -> Rate
-shortfall (BeltDy _ enter exit) = max 0 (exit - enter)
+shortfall b = max 0 (view fExiting b - view fEntering b)
 
 overflow :: BeltDy -> Rate
-overflow (BeltDy _ enter exit) = max 0 (enter - exit)
+overflow b = max 0 (view fEntering b - view fExiting b)
 
 -- ** Clusters of machines running a recipe
 
@@ -217,20 +220,28 @@ data ClusterSt = ClusterSt
 deriving stock instance Eq ClusterSt
 deriving stock instance Ord ClusterSt
 deriving stock instance Show ClusterSt
-makeLensesWith underscoreFields ''ClusterSt
+makeLensesWith techFields ''ClusterSt
+instance Has_fMachine ClusterSt Machine where fMachine = fRecipe . fKey . fMachine
+instance Has_fCycleTime ClusterSt NominalDiffTime where fCycleTime = fRecipe . fCycleTime
 
 -- *** Cluster dynamically
 
 data ClusterDy = ClusterDy
-  { _clusterDy_recipe :: Recipe
-  , _clusterDy_quantity :: Quantity
+  { _clusterDy_static :: ClusterSt
   , _clusterDy_transfer :: Transfer Rate
   }
 deriving stock instance Eq ClusterDy
 deriving stock instance Show ClusterDy
-makeLensesWith underscoreFields ''ClusterDy
+makeLensesWith techFields ''ClusterDy
+instance Has_fRecipe ClusterDy Recipe where fRecipe = fStatic . fRecipe
+instance Has_fMachine ClusterDy Machine where fMachine = fRecipe . fKey . fMachine
+instance Has_fCycleTime ClusterDy NominalDiffTime where fCycleTime = fRecipe . fCycleTime
+instance Has_fQuantity ClusterDy Quantity where fQuantity = fStatic . fQuantity
 
 -- ** Factory graphs
 
 type FactorySt = Gr ClusterSt BeltSt
 type FactoryDy = Gr ClusterDy BeltDy
+
+newNode :: Gr a b -> Node
+newNode g = if Gr.isEmpty g then 1 else succ . snd $ nodeRange g

@@ -1,7 +1,7 @@
 module Tech.Store where
 
 import Control.Lens (each, over, toListOf, view, _2, _Left)
-import Control.Lens.TH (makeLensesWith, underscoreFields)
+import Control.Lens.TH (makeLensesWith)
 import Control.Lens.Unsound (lensProduct)
 import Data.Aeson.TH (deriveJSON)
 import Data.Graph.Inductive (LEdge, LNode, Node, labEdges, labNodes, mkGraph)
@@ -9,6 +9,7 @@ import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Yaml (decodeEither', encode)
 import Data.Yaml qualified as Yaml
+import Tech.LensOptions (techFields)
 import Tech.Recipes (Recipes, findRecipeByKey, indexRecipes, unindexRecipes)
 import Tech.Store.AesonOptions (aesonOptions)
 import Tech.Store.Orphans ()
@@ -22,7 +23,7 @@ data ClusterSpec = ClusterSpec
   }
 deriving stock instance Show ClusterSpec
 deriveJSON aesonOptions ''ClusterSpec
-makeLensesWith underscoreFields ''ClusterSpec
+makeLensesWith techFields ''ClusterSpec
 
 data BeltSpec = BeltSpec
   { _beltSpec_upstream :: Node
@@ -31,7 +32,7 @@ data BeltSpec = BeltSpec
   }
 deriving stock instance Show BeltSpec
 deriveJSON aesonOptions ''BeltSpec
-makeLensesWith underscoreFields ''BeltSpec
+makeLensesWith techFields ''BeltSpec
 
 data FactorySpec = FactorySpec
   { _factorySpec_clusters :: [ClusterSpec]
@@ -40,7 +41,7 @@ data FactorySpec = FactorySpec
   }
 deriving stock instance Show FactorySpec
 deriveJSON aesonOptions ''FactorySpec
-makeLensesWith underscoreFields ''FactorySpec
+makeLensesWith techFields ''FactorySpec
 
 data RecipesSpec = RecipesSpec
   { _recipesSpec_items :: Set Item
@@ -48,7 +49,7 @@ data RecipesSpec = RecipesSpec
   }
 deriving stock instance Show RecipesSpec
 deriveJSON aesonOptions ''RecipesSpec
-makeLensesWith underscoreFields ''RecipesSpec
+makeLensesWith techFields ''RecipesSpec
 
 newtype InstantiateError
   = UnrecognizedRecipeIdentifier RecipeKey
@@ -70,8 +71,8 @@ clusterSpecFromSt :: LNode ClusterSt -> ClusterSpec
 clusterSpecFromSt (n, c) =
   ClusterSpec
     { _clusterSpec_node = n
-    , _clusterSpec_recipeKey = view (recipe . key) c
-    , _clusterSpec_quantity = view quantity c
+    , _clusterSpec_recipeKey = view (fRecipe . fKey) c
+    , _clusterSpec_quantity = view fQuantity c
     }
 
 beltSpecFromSt :: LEdge BeltSt -> BeltSpec
@@ -79,7 +80,7 @@ beltSpecFromSt (np, ns, b) =
   BeltSpec
     { _beltSpec_upstream = np
     , _beltSpec_downstream = ns
-    , _beltSpec_item = view item b
+    , _beltSpec_item = view fItem b
     }
 
 factorySpecFromSt :: Recipes -> FactorySt -> FactorySpec
@@ -93,29 +94,29 @@ factorySpecFromSt knownRecipes factSt =
   usedRecipes :: Map RecipeKey Recipe
   usedRecipes =
     Map.fromList
-      . toListOf (each . _2 . recipe . (key `lensProduct` id))
+      . toListOf (each . _2 . fRecipe . (fKey `lensProduct` id))
       . labNodes
       $ factSt
   _factorySpec_customRecipes =
     Map.elems . Map.filterWithKey (const . isNothing . findRecipeByKey knownRecipes) $ usedRecipes
 
 instantiateBeltSpec :: BeltSpec -> LEdge BeltSt
-instantiateBeltSpec bs = (view upstream bs, view downstream bs, BeltSt (view item bs))
+instantiateBeltSpec bs = (view fUpstream bs, view fDownstream bs, BeltSt (view fItem bs))
 
 instantiateClusterSpec
   :: Map Machine (Map RecipeIdentifier Recipe)
   -> ClusterSpec
   -> State (Set InstantiateError) (Maybe (LNode ClusterSt))
 instantiateClusterSpec knownRecipes clusterSpec =
-  let rk = view recipeKey clusterSpec
+  let rk = view fRecipeKey clusterSpec
   in  case findRecipeByKey knownRecipes rk of
         Nothing -> Nothing <$ modify (Set.insert (UnrecognizedRecipeIdentifier rk))
         Just r ->
           pure . Just $
-            ( view node clusterSpec
+            ( view fNode clusterSpec
             , ClusterSt
                 { _clusterSt_recipe = r
-                , _clusterSt_quantity = view quantity clusterSpec
+                , _clusterSt_quantity = view fQuantity clusterSpec
                 }
             )
 
@@ -124,7 +125,7 @@ instantiateCustomRecipes
   -> Recipe
   -> Map Machine (Map RecipeIdentifier Recipe)
 instantiateCustomRecipes rest r =
-  Map.insertWith (<>) (view (key . machine) r) (Map.singleton (view (key . identifier) r) r) rest
+  Map.insertWith (<>) (view (fKey . fMachine) r) (Map.singleton (view (fKey . fIdentifier) r) r) rest
 
 instantiateFactorySpec :: Recipes -> FactorySpec -> Either (Set InstantiateError) FactorySt
 instantiateFactorySpec knownRecipes factSpec =
@@ -133,9 +134,9 @@ instantiateFactorySpec knownRecipes factSpec =
     (_, errs) -> Left errs
  where
   go = do
-    let allRecipes = foldl' instantiateCustomRecipes knownRecipes (view customRecipes factSpec)
-    nodes <- catMaybes <$> traverse (instantiateClusterSpec allRecipes) (view clusters factSpec)
-    let edges = instantiateBeltSpec <$> view belts factSpec
+    let allRecipes = foldl' instantiateCustomRecipes knownRecipes (view fCustomRecipes factSpec)
+    nodes <- catMaybes <$> traverse (instantiateClusterSpec allRecipes) (view fClusters factSpec)
+    let edges = instantiateBeltSpec <$> view fBelts factSpec
     pure $ mkGraph nodes edges
 
 storeFactorySpec :: FactorySpec -> ByteString
@@ -169,7 +170,7 @@ recipesSpecFromRecipes :: (Set Item, Recipes) -> RecipesSpec
 recipesSpecFromRecipes (its, m) = RecipesSpec its (unindexRecipes m)
 
 instantiateRecipesFromSpec :: RecipesSpec -> Recipes
-instantiateRecipesFromSpec = indexRecipes . view recipes
+instantiateRecipesFromSpec = indexRecipes . view fRecipes
 
 loadRecipesSpec :: ByteString -> Either Yaml.ParseException RecipesSpec
 loadRecipesSpec = decodeEither'
@@ -181,7 +182,7 @@ loadRecipes :: ByteString -> Either LoadError ([LoadWarning], (Set Item, Recipes
 loadRecipes bs = do
   recipesSpec <- over _Left ParseError $ loadRecipesSpec bs
   let rs = instantiateRecipesFromSpec recipesSpec
-  pure (mempty, (view items recipesSpec, rs))
+  pure (mempty, (view fItems recipesSpec, rs))
 
 loadRecipesFile :: FilePath -> IO (Either LoadError ([LoadWarning], (Set Item, Recipes)))
 loadRecipesFile = fmap loadRecipes . readFileBS

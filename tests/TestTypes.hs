@@ -194,22 +194,22 @@ testMulR :: TestTree
 testMulR = testGroup "mulR" [distributivity]
  where
   distributivity = testProperty "distributivity" $
-    \(a :: Rational) b -> a `mulR` b `peqRecipe` over transfer (a `mulT`) b
+    \(a :: Rational) b -> a `mulR` b `peqRecipe` over fTransfer (a `mulT`) b
 
 testDivR :: TestTree
 testDivR = testGroup "divR" [distributivity]
  where
   distributivity = testProperty "distributivity" $
-    \a b -> a `divR` b `peqRecipe` over transfer (`divT` b) a
+    \a b -> a `divR` b `peqRecipe` over fTransfer (`divT` b) a
 
 testShortfall :: TestTree
 testShortfall = testProperty "shortfall" $
   \a b ->
-    let c = shortfall (BeltDy testItemA a b)
+    let c = shortfall (BeltDy (BeltSt testItemA) a b)
     in  if a > b then c === Rate 0 else c === (b - a)
 
 testOverflow :: TestTree
 testOverflow = testProperty "overflow" $
   \a b ->
-    let c = overflow (BeltDy testItemA a b)
+    let c = overflow (BeltDy (BeltSt testItemA) a b)
     in  if a < b then c === Rate 0 else c === (a - b)

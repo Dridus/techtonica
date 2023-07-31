@@ -11,7 +11,7 @@ findRecipeByKey recipes (RecipeKey m rid) = preview (ix m . ix rid) recipes
 
 insertRecipe :: Recipe -> Recipes -> Recipes
 insertRecipe r =
-  Map.insertWith (<>) (view (key . machine) r) (Map.singleton (view (key . identifier) r) r)
+  Map.insertWith (<>) (view (fKey . fMachine) r) (Map.singleton (view (fKey . fIdentifier) r) r)
 
 indexRecipes :: [Recipe] -> Recipes
 indexRecipes =
@@ -20,8 +20,8 @@ indexRecipes =
       ( each
           . to
             ( Map.singleton
-                <$> view (key . machine)
-                <*> (Map.singleton <$> view (key . identifier) <*> id)
+                <$> view (fKey . fMachine)
+                <*> (Map.singleton <$> view (fKey . fIdentifier) <*> id)
             )
       )
 
@@ -32,7 +32,7 @@ filterRecipes :: (Recipe -> Bool) -> Recipes -> [Recipe]
 filterRecipes p = toListOf (each . each . filtered p)
 
 producing :: Item -> Recipe -> Bool
-producing i = has $ transfer . outputs . ix i
+producing i = has $ fTransfer . fOutputs . ix i
 
 consuming :: Item -> Recipe -> Bool
-consuming i = has $ transfer . inputs . ix i
+consuming i = has $ fTransfer . fInputs . ix i

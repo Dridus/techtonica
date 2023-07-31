@@ -4,7 +4,7 @@ import ArbitraryTypes ()
 import Data.Graph.Inductive (LEdge, LNode, mkGraph)
 import Data.Time.Clock (NominalDiffTime, secondsToNominalDiffTime)
 import Prettyprinter (pretty)
-import Tech.Planner
+import Tech.Planner.Estimate
 import Tech.Pretty (ppAnonymousClusterDy)
 import Tech.TestFixtures (expectedLinearDy, linearSt, testItemA, testItemB, testMachine)
 import Tech.Types
@@ -18,6 +18,14 @@ tests :: TestTree
 tests =
   testGroup
     "Planner"
+    [ testEstimatePlanner
+    , testProposePlanner
+    ]
+
+testEstimatePlanner :: TestTree
+testEstimatePlanner =
+  testGroup
+    "Estimate"
     [ testAssignClusterRates
     , testEstimate
     ]
@@ -59,8 +67,7 @@ testAssignClusterRates =
   trivialClDy time qty ein eout =
     (1,) $
       ClusterDy
-        (trivialRecipe time)
-        qty
+        (ClusterSt (trivialRecipe time) qty)
         ([(testItemA, ein)] :>>: [(testItemB, eout)])
   trivialClSt :: NominalDiffTime -> Quantity -> LNode ClusterSt
   trivialClSt time qty = (1,) $ ClusterSt (trivialRecipe time) qty
@@ -74,3 +81,9 @@ testEstimate =
   linearNetwork =
     testCase "linear network" $
       factoryDyShouldBe (estimate linearSt) expectedLinearDy
+
+testProposePlanner :: TestTree
+testProposePlanner =
+  testGroup
+    "Propose"
+    []

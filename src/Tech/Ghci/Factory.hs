@@ -5,7 +5,7 @@ import Data.Graph.Inductive (Node)
 import Data.Graph.Inductive qualified as Gr
 import Prettyprinter (annotate, pretty, viaShow, vsep, (<+>))
 import Prettyprinter.Render.Terminal (Color (Green), color)
-import Tech.Ghci.State (currentFactory, currentRecipes, factory, recipes, updateState)
+import Tech.Ghci.State (currentFactory, currentRecipes, fFactory, updateState)
 import Tech.Ghci.Utils (printVerify, putDocLn)
 import Tech.Pretty (kw, ppFactorySt, ppLoadError, ppLoadWarning, ppQuantity, ppRecipeKey)
 import Tech.Store (loadFactoryFile, storeFactoryFile)
@@ -28,13 +28,13 @@ loadFactory fp = do
     Right (warns, factSt) -> do
       putDocLn . vsep . fmap ppLoadWarning $ warns
       updateState (kw "loadFactory" <+> viaShow fp) $
-        set factory factSt
+        set fFactory factSt
 
 setFactory :: FactorySt -> IO ()
-setFactory = updateState (kw "setFactory") . set factory
+setFactory = updateState (kw "setFactory") . set fFactory
 
 clearFactory :: IO ()
-clearFactory = updateState (kw "clearFactory") $ set factory Gr.empty
+clearFactory = updateState (kw "clearFactory") $ set fFactory Gr.empty
 
 verifyFactory :: IO ()
 verifyFactory =
@@ -46,9 +46,9 @@ addCluster :: IO Recipe -> Quantity -> IO Node
 addCluster recipeIO qty = do
   c <- ClusterSt <$> recipeIO <*> pure qty
   gin <- currentFactory
-  let n = if Gr.isEmpty gin then 1 else succ . snd $ Gr.nodeRange gin
-  updateState (kw "addCluster" <+> ppRecipeKey (view (recipe . key) c) <+> ppQuantity qty) $
-    over factory (Gr.insNode (n, c))
+  let n = newNode gin
+  updateState (kw "addCluster" <+> ppRecipeKey (view (fRecipe . fKey) c) <+> ppQuantity qty) $
+    over fFactory (Gr.insNode (n, c))
   pure n
 
 editCluster :: Node -> (ClusterSt -> ClusterSt) -> IO ()
@@ -58,19 +58,18 @@ editCluster n f = do
   ctx <- maybe (fail "Invalid node") pure mctx
   let ctx' = over _3 f ctx
   updateState (kw "editCluster" <+> pretty n) $
-    set factory $
-      ctx' Gr.& g'
+    set fFactory (ctx' Gr.& g')
 
 delCluster :: Node -> IO ()
 delCluster n =
-  updateState (kw "delCluster" <+> pretty n) $ over factory (Gr.delNode n)
+  updateState (kw "delCluster" <+> pretty n) $ over fFactory (Gr.delNode n)
 
 addBelt :: Node -> Node -> Item -> IO ()
 addBelt np ns i =
   updateState (kw "addBelt" <+> pretty np <+> pretty ns <+> viaShow i) $
-    over factory (Gr.insEdge (np, ns, BeltSt i))
+    over fFactory (Gr.insEdge (np, ns, BeltSt i))
 
 delBelt :: Node -> Node -> Item -> IO ()
 delBelt np ns i =
   updateState (kw "delBelt" <+> pretty np <+> pretty ns <+> viaShow i) $
-    over factory (Gr.delLEdge (np, ns, BeltSt i))
+    over fFactory (Gr.delLEdge (np, ns, BeltSt i))

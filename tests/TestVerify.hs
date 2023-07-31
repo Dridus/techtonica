@@ -4,13 +4,13 @@ import Data.Graph.Inductive (mkGraph)
 import Data.Graph.Inductive qualified as Gr
 import Data.Set qualified as Set
 import Prettyprinter (indent, line, vsep)
-import Tech.Pretty (ppFactorySt, ppVerifyError, ppVerifyWarning)
-import Tech.TestFixtures (linearSt, testItemA, testClusterA1B1, testItemB, testClusterB1C1)
+import Tech.Pretty (errDoc, ppFactorySt, ppVerifyError, ppVerifyWarning)
+import Tech.TestFixtures (linearSt, testClusterA1B1, testClusterB1C1, testItemA, testItemB)
 import Tech.Types
 import Tech.Verify
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (Assertion, testCase)
-import TestUtils (assertFailureDoc, errDoc)
+import TestUtils (assertFailureDoc)
 import Prelude hiding ((&))
 
 tests :: TestTree

@@ -14,12 +14,12 @@ import Data.Text.Encoding qualified as TE
 import Data.Yaml qualified as Yaml
 import Prettyprinter (Doc, annotate, indent, pretty, vsep, (<+>))
 import Prettyprinter.Render.Terminal (AnsiStyle, Color (White), color, colorDull)
-import Tech.Pretty (kw, ppFactorySt, ppLoadError, ppLoadWarning)
+import Tech.Pretty (errDoc, kw, ppFactorySt, ppLoadError, ppLoadWarning)
 import Tech.Store
 import Tech.TestFixtures (linearSt, testRecipes)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (Assertion, testCase)
-import TestUtils (assertBoolDoc, assertFailureDoc, errDoc, factoryStShouldBe)
+import TestUtils (assertBoolDoc, assertFailureDoc, factoryStShouldBe)
 
 tests :: TestTree
 tests = testGroup "Store" [linear]

@@ -1,8 +1,13 @@
 module Tech.TestFixtures where
 
-import Data.Graph.Inductive (Gr, LNode, mkGraph)
+import Data.Graph.Inductive (Gr, mkGraph)
 import Data.Set qualified as Set
-import Tech.Planner (assignClusterRates, estimate, externalRecipe, nExternalSink, nExternalSource)
+import Tech.Machines (externalSink, externalSource)
+import Tech.Planner.Estimate (
+  assignClusterRates,
+  estimate,
+  externalClusterDy,
+ )
 import Tech.Recipes (Recipes, indexRecipes)
 import Tech.Types
 
@@ -32,11 +37,11 @@ testClusterA1B1, testClusterB1C1 :: ClusterSt
 testClusterA1B1 = ClusterSt testRecipeA1B1 1
 testClusterB1C1 = ClusterSt testRecipeB1C1 1
 
-externalSource :: Image Rate -> LNode ClusterDy
-externalSource outs = (nExternalSource, ClusterDy externalRecipe 0.0 (Transfer mempty outs))
+externalSourceDy :: Image Rate -> ClusterDy
+externalSourceDy outs = externalClusterDy externalSource (Transfer mempty outs)
 
-externalSink :: Image Rate -> LNode ClusterDy
-externalSink ins = (nExternalSink, ClusterDy externalRecipe 0.0 (Transfer ins mempty))
+externalSinkDy :: Image Rate -> ClusterDy
+externalSinkDy ins = externalClusterDy externalSink (Transfer ins mempty)
 
 linearSt :: FactorySt
 linearSt =
@@ -56,12 +61,12 @@ linearDy = estimate linearSt
 expectedLinearDy :: FactoryDy
 expectedLinearDy =
   mkGraph
-    [ (1, ClusterDy testRecipeA1B1 1 testTransferA1B1)
-    , (2, ClusterDy testRecipeB1C1 1 testTransferB1C1)
-    , externalSource (One (testItemA, 1))
-    , externalSink (One (testItemC, 1))
+    [ (1, ClusterDy testClusterA1B1 testTransferA1B1)
+    , (2, ClusterDy testClusterB1C1 testTransferB1C1)
+    , (-1, externalSourceDy (One (testItemA, 1)))
+    , (-2, externalSinkDy (One (testItemC, 1)))
     ]
-    [ (1, 2, BeltDy testItemB 1 1)
-    , (nExternalSource, 1, BeltDy testItemA 1 1)
-    , (2, nExternalSink, BeltDy testItemC 1 1)
+    [ (1, 2, BeltDy (BeltSt testItemB) 1 1)
+    , (-1, 1, BeltDy (BeltSt testItemA) 1 1)
+    , (2, -2, BeltDy (BeltSt testItemC) 1 1)
     ]

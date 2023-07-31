@@ -2,9 +2,10 @@ module Tech.Pretty where
 
 import Control.Lens (each, maximumOf, over, to, toListOf, view, _1, _2, _3)
 import Data.Fixed (Fixed, HasResolution, Milli, showFixed)
-import Data.Graph.Inductive (Graph, LEdge, LNode, Node, context, gsel, labEdges, leveln, nodes)
+import Data.Graph.Inductive (DynGraph, Graph, LEdge, LNode, Node, components, context, gsel, labEdges, leveln, nodes, subgraph)
 import Data.Map.Strict qualified as Map
 import Data.Sequence ((|>))
+import Data.Sequence qualified as Seq
 import Data.Set qualified as Set
 import Data.Text (pack)
 import Data.Text qualified as T
@@ -14,20 +15,17 @@ import Data.Text.Lazy.Builder.RealFloat as TLBRF
 import Prettyprinter (
   Doc,
   annotate,
-  comma,
   enclose,
-  hsep,
+  hang,
   indent,
-  lbrace,
-  lparen,
+  line,
   pretty,
-  punctuate,
-  rbrace,
-  rparen,
+  softline,
   viaShow,
   vsep,
   (<+>),
  )
+import Prettyprinter qualified as Pp
 import Prettyprinter.Internal (unsafeTextWithoutNewlines)
 import Prettyprinter.Render.Terminal (
   AnsiStyle,
@@ -35,7 +33,9 @@ import Prettyprinter.Render.Terminal (
   color,
   colorDull,
  )
-import Tech.Planner (nExternalSink, nExternalSource)
+import Tech.Machines (externalSink, externalSource)
+import Tech.Planner.Propose (FactoryProp, IsNew (New), Proposal, ProposalError, ProposalStep, fFactory, fResult, fSteps)
+import Tech.Planner.Propose qualified as Propose
 import Tech.Store (InstantiateError, LoadError, LoadWarning)
 import Tech.Store qualified as Store
 import Tech.Types
@@ -45,17 +45,41 @@ import Tech.Verify qualified as Verify
 kw :: Doc AnsiStyle -> Doc AnsiStyle
 kw = annotate (color Magenta)
 
+errDoc :: Doc AnsiStyle -> Doc AnsiStyle
+errDoc = annotate (color Red)
+
+warnDoc :: Doc AnsiStyle -> Doc AnsiStyle
+warnDoc = annotate (color Yellow)
+
+comma, lparen, rparen, lbrace, rbrace, lbracket, rbracket :: Doc AnsiStyle
+comma = annotate (color Black) Pp.comma
+lparen = annotate (color Black) Pp.lparen
+rparen = annotate (color Black) Pp.rparen
+lbrace = annotate (color Black) Pp.lbrace
+rbrace = annotate (color Black) Pp.rbrace
+lbracket = annotate (color Black) Pp.lbracket
+rbracket = annotate (color Black) Pp.rbracket
+
+encloseSep :: Doc ann -> Doc ann -> Doc ann -> [Doc ann] -> Doc ann
+encloseSep l r s ds = l <> mconcat (intersperse (s <> " ") ds) <> r
+
 parens :: Doc AnsiStyle -> Doc AnsiStyle
-parens =
-  enclose
-    (annotate (color Black) lparen)
-    (annotate (color Black) rparen)
+parens = enclose lparen rparen
+
+parenthetical :: [Doc AnsiStyle] -> Doc AnsiStyle
+parenthetical = encloseSep lparen rparen comma
 
 braces :: Doc AnsiStyle -> Doc AnsiStyle
-braces =
-  enclose
-    (annotate (color Black) lbrace)
-    (annotate (color Black) rbrace)
+braces = enclose lbrace rbrace
+
+braced :: [Doc AnsiStyle] -> Doc AnsiStyle
+braced = encloseSep lbrace rbrace comma
+
+brackets :: Doc AnsiStyle -> Doc AnsiStyle
+brackets = enclose lbracket rbracket
+
+bracketed :: [Doc AnsiStyle] -> Doc AnsiStyle
+bracketed = encloseSep lbracket rbracket comma
 
 ppRealFloat :: forall a ann. RealFloat a => TLBRF.FPFormat -> Maybe Int -> a -> Doc ann
 ppRealFloat = (fmap . fmap) (pretty . TLB.toLazyText) . TLBRF.formatRealFloat
@@ -92,7 +116,7 @@ ppImage ppQ im =
   case pairs of
     [] -> "()"
     [p] -> ppPair p
-    _ -> braces . hsep . punctuate (annotate (color Black) comma) . map ppPair $ pairs
+    _ -> braced (ppPair <$> pairs)
  where
   pairs = Map.toList im
   ppPair (i, q) = ppQ q <+> ppItem i
@@ -102,12 +126,12 @@ ppTransfer ppQ (Transfer ins outs) = ppImage ppQ ins <+> ">->" <+> ppImage ppQ o
 
 ppRecipeKey :: RecipeKey -> Doc AnsiStyle
 ppRecipeKey rk =
-  ppMachine (view machine rk) <> annotate (color Black) "/" <> ppRecipeIdentifier (view identifier rk)
+  ppMachine (view fMachine rk) <> annotate (color Black) "/" <> ppRecipeIdentifier (view fIdentifier rk)
 
 ppRecipe :: Recipe -> Doc AnsiStyle
 ppRecipe r =
-  ppRecipeKey (view key r)
-    <+> kw "recipe"
+  kw "recipe"
+    <+> ppRecipeKey (view fKey r)
     <+> ppRecipeFunction r
 
 ppRecipeFunction :: Recipe -> Doc AnsiStyle
@@ -115,35 +139,43 @@ ppRecipeFunction r =
   annotate
     (colorDull White)
     ( parens $
-        (ppRealFloatMilli @Double . realToFrac . view cycleTime $ r)
+        (ppRealFloatMilli @Double . realToFrac . view fCycleTime $ r)
           <> annotate (color Black) "sec/cycle"
     )
-    <+> ppTransfer ppQuantity (view transfer r)
+    <> softline
+    <> hang 2 (ppTransfer ppQuantity (view fTransfer r))
 
 ppAnonymousBeltSt :: BeltSt -> Doc AnsiStyle
 ppAnonymousBeltSt b =
   kw "belt"
     <+> "carrying"
-    <+> ppItem (view item b)
+    <+> ppItem (view fItem b)
+
+ppNode :: Node -> Doc AnsiStyle
+ppNode = annotate (color Yellow) . pretty
 
 ppBeltKey :: (Node, Node) -> Doc AnsiStyle
 ppBeltKey (np, ns) =
-  annotate (color Yellow) (if np == nExternalSource then "external" else pretty np)
+  (if np < 0 then kw ("external" <> show np) else ppNode np)
     <+> "↘"
-    <+> annotate (color Yellow) (if ns == nExternalSink then "external" else pretty ns)
-    <> annotate (color Black) (pretty ':')
+    <+> (if ns < 0 then kw ("external" <> show ns) else ppNode ns)
+      <> annotate (color Black) (pretty ':')
 
 ppBeltSt :: (Node, Node) -> BeltSt -> Doc AnsiStyle
 ppBeltSt k c = ppBeltKey k <+> ppAnonymousBeltSt c
+
+ppBeltProp :: (Node, Node) -> (BeltSt, IsNew) -> Doc AnsiStyle
+ppBeltProp k (b, New) = annotate (color Green) "new" <+> ppBeltSt k b
+ppBeltProp k (b, _) = ppBeltSt k b
 
 ppAnonymousBeltDy :: BeltDy -> Doc AnsiStyle
 ppAnonymousBeltDy b =
   kw "belt"
     <+> "carrying"
-    <+> ppItem (view item b)
+    <+> ppItem (view fItem b)
     <+> parens
-      ( ppRate (view entering b)
-          <+> ( case compare (view entering b) (view exiting b) of
+      ( ppRate (view fEntering b)
+          <+> ( case compare (view fEntering b) (view fExiting b) of
                   LT ->
                     ">-"
                       <+> annotate (colorDull Red) ("short" <+> ppRate (shortfall b))
@@ -154,7 +186,7 @@ ppAnonymousBeltDy b =
                       <+> annotate (colorDull Yellow) ("over" <+> ppRate (overflow b))
                       <+> "->"
               )
-          <+> ppRate (view exiting b)
+          <+> ppRate (view fExiting b)
       )
 
 ppBeltDy :: (Node, Node) -> BeltDy -> Doc AnsiStyle
@@ -164,40 +196,39 @@ ppAnonymousClusterSt :: ClusterSt -> Doc AnsiStyle
 ppAnonymousClusterSt c =
   kw "cluster"
     <+> "of"
-    <+> ppQuantity (view quantity c)
-    <+> ppRecipeKey (view (recipe . key) c)
+    <+> ppQuantity (view fQuantity c)
+    <+> ppRecipeKey (view (fRecipe . fKey) c)
       <> ":"
-    <+> ppRecipeFunction (view recipe c)
+    <+> ppRecipeFunction (view fRecipe c)
 
 ppClusterSt :: Node -> ClusterSt -> Doc AnsiStyle
-ppClusterSt n c =
-  annotate (color Yellow) (pretty n)
-    <> annotate (color Black) (pretty ':')
-    <+> ppAnonymousClusterSt c
+ppClusterSt n c = ppNode n <> annotate (color Black) (pretty ':') <+> ppAnonymousClusterSt c
+
+ppClusterProp :: Node -> (ClusterSt, IsNew) -> Doc AnsiStyle
+ppClusterProp n (c, New) = annotate (color Green) "new" <+> ppClusterSt n c
+ppClusterProp n (c, _) = ppClusterSt n c
 
 ppAnonymousClusterDy :: ClusterDy -> Doc AnsiStyle
 ppAnonymousClusterDy c =
   kw "cluster"
     <+> "of"
-    <+> ppQuantity (view quantity c)
-    <+> ppRecipeKey (view (recipe . key) c)
+    <+> ppQuantity (view fQuantity c)
+    <+> ppRecipeKey (view (fRecipe . fKey) c)
       <> ":"
-    <+> ppTransfer ppRate (view transfer c)
+    <+> ppTransfer ppRate (view fTransfer c)
 
 ppClusterDy :: Node -> ClusterDy -> Doc AnsiStyle
 ppClusterDy n c
-  | n == nExternalSource =
-      kw "external resources"
+  | view fMachine c == externalSource =
+      kw ("external" <> show n)
         <+> "↓"
-        <+> ppImage ppRate (view (transfer . outputs) c)
-  | n == nExternalSink =
-      kw "byproducts"
+        <+> ppImage ppRate (view (fTransfer . fOutputs) c)
+  | view fMachine c == externalSink =
+      kw ("byproducts" <> show n)
         <+> "↓"
-        <+> ppImage ppRate (view (transfer . inputs) c)
+        <+> ppImage ppRate (view (fTransfer . fInputs) c)
   | otherwise =
-      annotate (color Yellow) (pretty n)
-        <> annotate (color Black) (pretty ':')
-        <+> ppAnonymousClusterDy c
+      ppNode n <> annotate (color Black) (pretty ':') <+> ppAnonymousClusterDy c
 
 coNodeLine :: String
 coNodeLine = repeat '━'
@@ -208,13 +239,42 @@ emptyLine = repeat ' '
 
 ppGraph
   :: forall a b bk g
+   . (DynGraph g, Ord bk, Show bk)
+  => (Node -> a -> Doc AnsiStyle)
+  -> (b -> bk)
+  -> ((Node, Node) -> b -> Doc AnsiStyle)
+  -> g a b
+  -> Doc AnsiStyle
+ppGraph ppA bkf ppB g
+  | [gc] <- comps = ppGraphComponent ppA bkf ppB gc
+  | otherwise =
+      vsep
+        . fmap (ppNumberedGraphComponent ppA bkf ppB)
+        . zip [1 ..]
+        $ comps
+ where
+  comps = (`subgraph` g) <$> components g
+
+ppNumberedGraphComponent
+  :: forall a b bk g
+   . (Graph g, Ord bk, Show bk)
+  => (Node -> a -> Doc AnsiStyle)
+  -> (b -> bk)
+  -> ((Node, Node) -> b -> Doc AnsiStyle)
+  -> (Int, g a b)
+  -> Doc AnsiStyle
+ppNumberedGraphComponent ppA bkf ppB (i, gc) =
+  kw "component" <+> pretty i <> line <> indent 2 (ppGraphComponent ppA bkf ppB gc)
+
+ppGraphComponent
+  :: forall a b bk g
    . (Graph g, Ord bk, Show bk)
   => (Node -> a -> Doc AnsiStyle)
   -> (b -> bk)
   -> ((Node, Node) -> b -> Doc AnsiStyle)
   -> g a b
   -> Doc AnsiStyle
-ppGraph ppNode edgeKey ppEdge g =
+ppGraphComponent ppA bkf ppB g =
   render . over _2 padTracks . generate . map fst $ leveln ((,0) <$> roots) g
  where
   roots :: [Node]
@@ -228,7 +288,7 @@ ppGraph ppNode edgeKey ppEdge g =
     let validNodes = Set.fromList (nodes g)
     in  Map.fromList
           . flip zip [0 ..]
-          . fmap (over _3 edgeKey)
+          . fmap (over _3 bkf)
           . filter (\(np, _, _) -> not (Set.member np validNodes))
           . labEdges
           $ g
@@ -238,7 +298,7 @@ ppGraph ppNode edgeKey ppEdge g =
   render (danglingTrailingMarkers, rows) =
     vsep . concat @[] $
       [ [ vsep
-          ( annotate (color Red) "dangling predecessor edges:"
+          ( errDoc "dangling predecessor edges:"
               : fmap
                 (\(np, ns, bk) -> ppBeltKey (np, ns) <+> viaShow bk)
                 (Map.keys danglingInitialMarkers)
@@ -248,12 +308,12 @@ ppGraph ppNode edgeKey ppEdge g =
       , map
           ( \(track, row) ->
               pretty track <+> case row of
-                Left (n, a) -> ppNode n a
-                Right (np, ns, b) -> ppEdge (np, ns) b
+                Left (n, a) -> ppA n a
+                Right (np, ns, b) -> ppB (np, ns) b
           )
           (toList rows)
       , [ vsep
-          ( annotate (color Red) "dangling successor edges:"
+          ( errDoc "dangling successor edges:"
               : fmap
                 (\(np, ns, bk) -> ppBeltKey (np, ns) <+> viaShow bk)
                 (Map.keys danglingTrailingMarkers)
@@ -293,7 +353,7 @@ ppGraph ppNode edgeKey ppEdge g =
 
         -- which marker tracks are terminating at this node from above
         terminating :: Map (Node, Node, bk) Int
-        terminating = Map.fromList $ pre <&> \(b, np) -> ((np, n, edgeKey b), 0 {- key ignored -})
+        terminating = Map.fromList $ pre <&> \(b, np) -> ((np, n, bkf b), 0 {- key ignored -})
 
         -- the set of markers after removing the ones terminating at this node
         survivingMarkers :: Map (Node, Node, bk) Int
@@ -309,7 +369,7 @@ ppGraph ppNode edgeKey ppEdge g =
                   let c' = flip fix c0 $ \continue c -> if Set.member c occupied then continue (succ c) else c
                   in  ( c'
                       , Set.insert c' occupied
-                      , Map.insert (n, ns, edgeKey b) (b, c') m
+                      , Map.insert (n, ns, bkf b) (b, c') m
                       )
               )
               (0, Set.fromList (Map.elems survivingMarkers), mempty)
@@ -328,23 +388,28 @@ ppGraph ppNode edgeKey ppEdge g =
           TL.toStrict
             . TLB.toLazyText
             . (\(_, co, tb) -> tb <> TLB.fromString (take 1 (if co then coLine else emptyLine)))
-            . renderColumns
-              (0, False, mempty)
+            . renderColumns (Nothing, False, mempty)
             . sortOn snd
             . Map.toList
          where
-          renderColumns :: (Int, Bool, TLB.Builder) -> [((Node, Node, bk), Int)] -> (Int, Bool, TLB.Builder)
+          renderColumns
+            :: (Maybe Int, Bool, TLB.Builder)
+            -> [((Node, Node, bk), Int)]
+            -> (Maybe Int, Bool, TLB.Builder)
           renderColumns s [] = s
-          renderColumns (c, co, tb) (firstHit@(_, c') : rest) =
+          renderColumns (cMay, co, tb) (firstHit@(_, c') : rest) =
             let
               (hits, rest') = over _1 (firstHit :|) (span ((== c') . snd) rest)
               hit = hitf co (fst <$> hits)
+              prefixLen = case cMay of
+                Just c -> (c' - c) * 2 - 1
+                Nothing -> c' * 2 + 1
             in
               renderColumns
-                ( c'
+                ( Just c'
                 , co || isJust hit
                 , tb
-                    <> TLB.fromString (take ((c' - c) * 2) (if co then coLine else emptyLine))
+                    <> TLB.fromString (take prefixLen (if co then coLine else emptyLine))
                     <> TLB.singleton (fromMaybe '┃' hit)
                 )
                 rest'
@@ -374,26 +439,29 @@ ppGraph ppNode edgeKey ppEdge g =
         )
 
 ppFactorySt :: FactorySt -> Doc AnsiStyle
-ppFactorySt = ppGraph ppClusterSt (view item) ppBeltSt
+ppFactorySt = ppGraph ppClusterSt (view fItem) ppBeltSt
+
+ppFactoryProp :: FactoryProp -> Doc AnsiStyle
+ppFactoryProp = ppGraph ppClusterProp (view (_1 . fItem)) ppBeltProp
 
 ppFactoryDy :: FactoryDy -> Doc AnsiStyle
-ppFactoryDy = ppGraph ppClusterDy (view item) ppBeltDy
+ppFactoryDy = ppGraph ppClusterDy (view fItem) ppBeltDy
 
 ppVerifyError :: VerifyError -> Doc AnsiStyle
 ppVerifyError = \case
   Verify.BeltUpNodeInvalid (np, ns, b) ->
     vsep
-      [ annotate (color Red) ("Error: Belt upstream (predecessor) node" <+> pretty np <+> "invalid.")
+      [ errDoc $ "Error: Belt upstream (predecessor) node" <+> pretty np <+> "invalid."
       , indent 2 (ppBeltSt (np, ns) b)
       ]
   Verify.BeltDownNodeInvalid (np, ns, b) ->
     vsep
-      [ annotate (color Red) ("Error: Belt downstream (successor) node" <+> pretty ns <+> "invalid.")
+      [ errDoc $ "Error: Belt downstream (successor) node" <+> pretty ns <+> "invalid."
       , indent 2 (ppBeltSt (np, ns) b)
       ]
   Verify.UnknownItem i r ->
     vsep
-      [ annotate (color Red) ("Error: Unknown item " <> ppItem i)
+      [ errDoc $ "Error: Unknown item " <> ppItem i
       , indent 2 (ppRecipe r)
       ]
 
@@ -413,12 +481,12 @@ ppVerifyWarning = \case
 ppInstantiateError :: InstantiateError -> Doc AnsiStyle
 ppInstantiateError = \case
   Store.UnrecognizedRecipeIdentifier rk ->
-    annotate (color Red) ("Error: unknown recipe" <+> ppRecipeKey rk)
+    errDoc $ "Error: unknown recipe" <+> ppRecipeKey rk
 
 ppLoadError :: LoadError -> Doc AnsiStyle
 ppLoadError = \case
   Store.ParseError parseEx ->
-    annotate (color Red) (viaShow parseEx)
+    errDoc $ viaShow parseEx
   Store.InstantiateError instErrs ->
     vsep $ ppInstantiateError <$> Set.toList instErrs
   Store.VerifyError (errs, warns) ->
@@ -428,3 +496,55 @@ ppLoadWarning :: LoadWarning -> Doc AnsiStyle
 ppLoadWarning = \case
   Store.VerifyWarning warn ->
     ppVerifyWarning warn
+
+ppProposal :: Int -> Proposal -> Maybe FactoryDy -> Doc AnsiStyle
+ppProposal i p factDyMay =
+  ( "Proposal"
+      <+> annotate (color Yellow) (pretty i)
+      <+> ( case view fResult p of
+              Left _ -> "failed"
+              Right () -> "succeeded"
+          )
+      <+> "after"
+      <+> pretty (Seq.length (view fSteps p))
+      <+> "steps"
+      <+> parenthetical (ppProposalStep <$> toList (view fSteps p))
+  )
+    <> line
+    <> indent
+      2
+      ( ( case view fResult p of
+            Left perr -> errDoc (ppProposalError perr)
+            Right () -> mempty
+        )
+          <> line
+          <> indent 2 (vsep ["Structure:", indent 2 $ ppFactoryProp (view fFactory p)])
+          <> line
+          <> ( case factDyMay of
+                Just factDy ->
+                  indent 2 $ vsep ["Estimated:", indent 2 $ ppFactoryDy factDy]
+                Nothing -> mempty
+             )
+      )
+
+ppProposalError :: ProposalError -> Doc AnsiStyle
+ppProposalError = \case
+  Propose.NoRecipesProduceItem item ->
+    errDoc ("No recipes found that produce" <+> ppItem item)
+  Propose.ProposalStepsExceeded ->
+    errDoc "maximum proposal steps exceeded"
+
+ppProposalStep :: ProposalStep -> Doc AnsiStyle
+ppProposalStep = \case
+  Propose.TryRecipe recipe item rate pstepFor ->
+    kw "add"
+      <+> ppRecipeKey (view fKey recipe)
+      <+> "to get"
+      <+> ppRate rate
+      <+> ppItem item
+      <+> ( case pstepFor of
+              Propose.ProposalStepForGoal ->
+                "for goal"
+              Propose.ProposalStepForIntermediates ns ->
+                "for intermediates" <+> bracketed (ppNode <$> ns)
+          )
