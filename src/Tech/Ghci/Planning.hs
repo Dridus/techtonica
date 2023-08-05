@@ -38,7 +38,7 @@ proposeFactory needs constraints = do
   gin <- currentFactory
   let proposals = propose recipes gin needs constraints
   writeIORef currentProposalsRef $ Just (generation, proposals)
-  putDocLn . vsep . concat @[] $
+  putDocLn . vsep . concat $
     [
       [ "Generated"
           <+> pretty (length proposals)

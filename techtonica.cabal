@@ -44,7 +44,6 @@ common shared
       MultiWayIf
       NamedFieldPuns
       NumericUnderscores
-      OverloadedLists
       OverloadedStrings
       PatternSynonyms
       PolyKinds

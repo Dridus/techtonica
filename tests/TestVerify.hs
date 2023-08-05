@@ -40,7 +40,7 @@ shouldVerifyAs factSt (expectedWarns, expectedErrs) =
   renderWarnings = renderSet ppVerifyWarning
   renderErrors = renderSet ppVerifyError
   failedAssertions =
-    concat @[]
+    concat
       [ [ errDoc "expected warnings not signalled:"
           <> line
           <> indent 2 (renderWarnings missingWarns)

@@ -296,7 +296,7 @@ ppGraphComponent ppA bkf ppB g =
   -- The final conversion from row data and dangling markers that never terminated into a Doc.
   render :: (Map (Node, Node, bk) Int, Seq (Text, Either (LNode a) (LEdge b))) -> Doc AnsiStyle
   render (danglingTrailingMarkers, rows) =
-    vsep . concat @[] $
+    vsep . concat $
       [ [ vsep
           ( errDoc "dangling predecessor edges:"
               : fmap
