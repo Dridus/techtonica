@@ -3,10 +3,12 @@ module Tech.Ghci.Factory where
 import Control.Lens (over, set, view, _3)
 import Data.Graph.Inductive (Node)
 import Data.Graph.Inductive qualified as Gr
+import Data.Text.Lazy.IO qualified as TLIO
 import Prettyprinter (annotate, pretty, viaShow, vsep, (<+>))
 import Prettyprinter.Render.Terminal (Color (Green), color)
 import Tech.Ghci.State (currentFactory, currentRecipes, fFactory, updateState)
 import Tech.Ghci.Utils (printVerify, putDocLn)
+import Tech.Mermaid (graphFactorySt)
 import Tech.Pretty (kw, ppFactorySt, ppLoadError, ppLoadWarning, ppQuantity, ppRecipeKey)
 import Tech.Store (loadFactoryFile, storeFactoryFile)
 import Tech.Types
@@ -15,6 +17,9 @@ import Prelude hiding (state)
 
 printFactory :: IO ()
 printFactory = putDocLn . ppFactorySt =<< currentFactory
+
+graphFactory :: FilePath -> IO ()
+graphFactory fp = TLIO.writeFile fp . graphFactorySt =<< currentFactory
 
 saveFactory :: FilePath -> IO ()
 saveFactory fp =

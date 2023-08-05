@@ -96,6 +96,7 @@ library
     Tech.Graph
     Tech.LensOptions
     Tech.Machines
+    Tech.Mermaid
     Tech.Planner.Estimate
     Tech.Planner.Propose
     Tech.Pretty

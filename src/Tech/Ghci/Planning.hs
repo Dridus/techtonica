@@ -1,11 +1,13 @@
 module Tech.Ghci.Planning where
 
 import Control.Lens (each, filteredBy, ix, lengthOf, preview, previews, set, view, _Left, _Right, _head)
+import Data.Text.Lazy.IO qualified as TLIO
 import Prettyprinter (annotate, indent, pretty, vsep, (<+>))
 import Prettyprinter.Render.Terminal (Color (Yellow), color)
 import System.IO.Unsafe (unsafePerformIO)
 import Tech.Ghci.State (Generation, currentFactory, currentGeneration, currentRecipes, updateState)
 import Tech.Ghci.Utils (putDocLn)
+import Tech.Mermaid (graphFactoryDy)
 import Tech.Planner.Estimate (estimate)
 import Tech.Planner.Propose (Proposal, ProposalConstraints, Proposals, fFactory, fResult, factoryStFromProp, propose)
 import Tech.Pretty (errDoc, kw, ppFactoryDy, ppFactorySt, ppProposal)
@@ -13,6 +15,9 @@ import Tech.Types
 
 estimateFactory :: IO ()
 estimateFactory = putDocLn . ppFactoryDy . estimate =<< currentFactory
+
+graphEstimateFactory :: FilePath -> IO ()
+graphEstimateFactory fp = TLIO.writeFile fp . graphFactoryDy . estimate =<< currentFactory
 
 {-# NOINLINE currentProposalsRef #-}
 currentProposalsRef :: IORef (Maybe (Generation, Proposals))

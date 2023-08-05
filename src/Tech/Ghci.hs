@@ -11,6 +11,7 @@ import Tech.Ghci.Factory as Export (
   delBelt,
   delCluster,
   editCluster,
+  graphFactory,
   loadFactory,
   printFactory,
   saveFactory,
@@ -20,6 +21,7 @@ import Tech.Ghci.Factory as Export (
 import Tech.Ghci.Planning as Export (
   acceptProposal,
   estimateFactory,
+  graphEstimateFactory,
   printProposal,
   printProposals,
   proposeFactory,
