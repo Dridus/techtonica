@@ -1,6 +1,6 @@
 {
   inputs = {
-    systems.url = "github:nix-systems/aarch64-linux";
+    systems.url = "github:nix-systems/default";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
     flake-parts.url = "github:hercules-ci/flake-parts";
     haskell-flake.url = "github:srid/haskell-flake";

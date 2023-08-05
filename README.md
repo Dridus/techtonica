@@ -529,13 +529,18 @@ This uses flakes, so you'll need a decently recent nix, and maybe to enable the 
 2. Belt capacity.
 3. Inserter capacity.
 4. ~Planning as in "I want item X at Y/min, tell me how".~
+   Done in https://github.com/Dridus/techtonica/commit/3f2f175fd55312ca0aa79058fee543238756a9fe
 5. Containers or other similar "magic sinks".
 6. Renaming.
 7. Innate parallelism of machines (planter, e.g.).
 8. Global speed factors (Assembling speed techs, e.g.).
-9. More automated testing:
+9. Haddocks.
+10. Explicit export lists.
+11. More automated testing:
    1. Automated tests for `Tech.Graph`.
    2. More complete automated tests for `Tech.Planner.Estimate`.
    3. Automated tests for `Tech.Planner.Propose`.
    4. Automated tests for `Tech.Store` recipes/items.
-10. Showing `history` diffs.
+12. Showing `history` diffs.
+13. Floorplanning?
+14. Use-based allocation of belt outflows.
