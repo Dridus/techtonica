@@ -49,7 +49,7 @@ renderAnonymousClusterSt c =
     <> (renderRecipeKey . view (fRecipe . fKey) $ c)
 
 renderClusterSt :: Node -> ClusterSt -> TLB.Builder
-renderClusterSt _ = renderAnonymousClusterSt
+renderClusterSt n c = "[#" <> TLBI.decimal n <> "] " <> renderAnonymousClusterSt c
 
 renderAnonymousClusterDy :: ClusterDy -> TLB.Builder
 renderAnonymousClusterDy c =
@@ -64,7 +64,7 @@ renderClusterDy :: Node -> ClusterDy -> TLB.Builder
 renderClusterDy n c
   | view fMachine c == externalSource = "external source " <> TLBI.decimal n
   | view fMachine c == externalSink = "byproducts " <> TLBI.decimal n
-  | otherwise = renderAnonymousClusterDy c
+  | otherwise = "[#" <> TLBI.decimal n <> "] " <> renderAnonymousClusterDy c
 
 renderAnonymousBeltSt :: BeltSt -> TLB.Builder
 renderAnonymousBeltSt = renderItem . view fItem
