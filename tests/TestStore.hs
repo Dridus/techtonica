@@ -120,7 +120,7 @@ linearYaml =
     "customRecipes": [
       {
         "key": {"machine": "test", "identifier": "a1b1"},
-        "cycleTime": 1,
+        "cycleTime": 60,
         "transfer": {
           "inputs": {"testA": {"numerator": 1, "denominator": 1}},
           "outputs": {"testB": {"numerator": 1, "denominator": 1}}
@@ -128,7 +128,7 @@ linearYaml =
       },
       {
         "key": {"machine": "test", "identifier": "b1c1"},
-        "cycleTime": 1,
+        "cycleTime": 60,
         "transfer": {
           "inputs": {"testB": {"numerator": 1, "denominator": 1}},
           "outputs": {"testC": {"numerator": 1, "denominator": 1}}

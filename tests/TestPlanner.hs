@@ -46,8 +46,8 @@ testAssignClusterRates =
         id
         (==)
         pretty
-        (assignClusterRates (mkGraph [trivialClSt 1.0 qty] []))
-        (mkGraph [trivialClDy 1.0 qty (Rate $ 10.0 * unQuantity qty) (Rate $ unQuantity qty)] edges)
+        (assignClusterRates (mkGraph [trivialClSt 60.0 qty] []))
+        (mkGraph [trivialClDy 60.0 qty (PerMinute $ 10.0 * unQuantity qty) (PerMinute $ unQuantity qty)] edges)
   cycleTimeInverseProportional = testProperty "rates inversely proportional to cycle time" $
     \(Positive (secondsToNominalDiffTime -> time)) ->
       peqGraph
@@ -57,13 +57,21 @@ testAssignClusterRates =
         (==)
         pretty
         (assignClusterRates (mkGraph [trivialClSt time 1.0] []))
-        (mkGraph [trivialClDy time 1.0 (Rate $ 10.0 / realToFrac time) (Rate $ 1.0 / realToFrac time)] edges)
+        ( mkGraph
+            [ trivialClDy
+                time
+                1.0
+                (PerMinute $ 10.0 / realToFrac (time / 60))
+                (PerMinute $ 1.0 / realToFrac (time / 60))
+            ]
+            edges
+        )
   trivialRecipe time =
     Recipe
       (RecipeKey testMachine "trivial")
       time
       ([(testItemA, Quantity 10.0)] :>>: [(testItemB, Quantity 1.0)])
-  trivialClDy :: NominalDiffTime -> Quantity -> Rate -> Rate -> LNode ClusterDy
+  trivialClDy :: NominalDiffTime -> Quantity -> PerMinute -> PerMinute -> LNode ClusterDy
   trivialClDy time qty ein eout =
     (1,) $
       ClusterDy

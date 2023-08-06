@@ -60,16 +60,16 @@ instance Show Quantity where
 
 -- ** Clusters per second
 
-newtype Rate = Rate {unRate :: Rational}
-deriving newtype instance Eq Rate
-deriving newtype instance Fractional Rate
-deriving newtype instance Num Rate
-deriving newtype instance Real Rate
-deriving newtype instance RealFrac Rate
-deriving newtype instance Ord Rate
-makeWrapped ''Rate
-instance Show Rate where
-  showsPrec d (Rate i) = showParen (d > 9) $ showString "Rate " . showsPrec (d + 1) i
+newtype PerMinute = PerMinute {unPerMinute :: Rational}
+deriving newtype instance Eq PerMinute
+deriving newtype instance Fractional PerMinute
+deriving newtype instance Num PerMinute
+deriving newtype instance Real PerMinute
+deriving newtype instance RealFrac PerMinute
+deriving newtype instance Ord PerMinute
+makeWrapped ''PerMinute
+instance Show PerMinute where
+  showsPrec d (PerMinute i) = showParen (d > 9) $ showString "PerMinute " . showsPrec (d + 1) i
 
 -- * Recipes and Flows
 
@@ -194,8 +194,8 @@ makeLensesWith techFields ''BeltSt
 
 data BeltDy = BeltDy
   { _beltDy_static :: BeltSt
-  , _beltDy_entering :: Rate
-  , _beltDy_exiting :: Rate
+  , _beltDy_entering :: PerMinute
+  , _beltDy_exiting :: PerMinute
   }
 deriving stock instance Eq BeltDy
 deriving stock instance Ord BeltDy
@@ -203,10 +203,10 @@ deriving stock instance Show BeltDy
 makeLensesWith techFields ''BeltDy
 instance Has_fItem BeltDy Item where fItem = fStatic . fItem
 
-shortfall :: BeltDy -> Rate
+shortfall :: BeltDy -> PerMinute
 shortfall b = max 0 (view fExiting b - view fEntering b)
 
-overflow :: BeltDy -> Rate
+overflow :: BeltDy -> PerMinute
 overflow b = max 0 (view fEntering b - view fExiting b)
 
 -- ** Clusters of machines running a recipe
@@ -228,7 +228,7 @@ instance Has_fCycleTime ClusterSt NominalDiffTime where fCycleTime = fRecipe . f
 
 data ClusterDy = ClusterDy
   { _clusterDy_static :: ClusterSt
-  , _clusterDy_transfer :: Transfer Rate
+  , _clusterDy_transfer :: Transfer PerMinute
   }
 deriving stock instance Eq ClusterDy
 deriving stock instance Show ClusterDy

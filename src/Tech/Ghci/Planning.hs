@@ -31,7 +31,7 @@ currentProposals = do
     Just (gExpected, _) | gExpected /= gActual -> fail "proposals out of date due to change in factory"
     Just (_, proposals) -> pure proposals
 
-proposeFactory :: Image Rate -> ProposalConstraints Last -> IO ()
+proposeFactory :: Image PerMinute -> ProposalConstraints Last -> IO ()
 proposeFactory needs constraints = do
   generation <- currentGeneration
   recipes <- currentRecipes

@@ -10,7 +10,7 @@ deriving newtype instance Arbitrary Item
 deriving newtype instance Arbitrary Machine
 deriving newtype instance Arbitrary RecipeIdentifier
 deriving newtype instance Arbitrary Quantity
-deriving newtype instance Arbitrary Rate
+deriving newtype instance Arbitrary PerMinute
 
 instance Arbitrary q => Arbitrary (Transfer q) where
   arbitrary = Transfer <$> arbitrary <*> arbitrary

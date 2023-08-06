@@ -19,8 +19,8 @@ deriving newtype instance ToJSON RecipeIdentifier
 deriving newtype instance ToJSONKey RecipeIdentifier
 deriving newtype instance FromJSON Quantity
 deriving newtype instance ToJSON Quantity
-deriving newtype instance FromJSON Rate
-deriving newtype instance ToJSON Rate
+deriving newtype instance FromJSON PerMinute
+deriving newtype instance ToJSON PerMinute
 
 deriveJSON aesonOptions ''Transfer
 deriveJSON aesonOptions ''RecipeKey

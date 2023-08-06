@@ -107,7 +107,7 @@ deriving stock instance Show ProposalStepFor
 data ProposalStep = TryRecipe
   { _proposalStep_recipe :: Recipe
   , _proposalStep_item :: Item
-  , _proposalStep_rate :: Rate
+  , _proposalStep_rate :: PerMinute
   , _proposalStep_for :: ProposalStepFor
   }
 deriving stock instance Eq ProposalStep
@@ -144,7 +144,7 @@ type Proposals = Seq Proposal
 data ProposeEnv = ProposeEnv
   { _proposeEnv_recipes :: Recipes
   , _proposeEnv_original :: FactorySt
-  , _proposeEnv_goal :: Image Rate
+  , _proposeEnv_goal :: Image PerMinute
   , _proposeEnv_constraints :: ProposalConstraints Identity
   }
 deriving stock instance Show ProposeEnv
@@ -153,14 +153,14 @@ makeLensesWith techFields ''ProposeEnv
 data ProposalEnv = ProposalEnv
   { _proposalEnv_parentEnv :: ProposeEnv
   , _proposalEnv_estimate :: FactoryDy
-  , _proposalEnv_overflows :: Image (Map Node Rate)
-  , _proposalEnv_byproducts :: Image (Map Node Rate)
+  , _proposalEnv_overflows :: Image (Map Node PerMinute)
+  , _proposalEnv_byproducts :: Image (Map Node PerMinute)
   }
 deriving stock instance Show ProposalEnv
 makeLensesWith techFields ''ProposalEnv
 instance Has_fRecipes ProposalEnv Recipes where fRecipes = fParentEnv . fRecipes
 instance Has_fOriginal ProposalEnv FactorySt where fOriginal = fParentEnv . fOriginal
-instance Has_fGoal ProposalEnv (Image Rate) where fGoal = fParentEnv . fGoal
+instance Has_fGoal ProposalEnv (Image PerMinute) where fGoal = fParentEnv . fGoal
 instance Has_fConstraints ProposalEnv (ProposalConstraints Identity) where
   fConstraints = fParentEnv . fConstraints
 
@@ -183,7 +183,7 @@ makeLensesWith techFields ''ProposeState
 maxProposalSteps :: Int
 maxProposalSteps = 100
 
-propose :: Recipes -> FactorySt -> Image Rate -> ProposalConstraints Last -> Proposals
+propose :: Recipes -> FactorySt -> Image PerMinute -> ProposalConstraints Last -> Proposals
 propose recipes gin needs (fixConstraints -> constraints) =
   view _1 $ runRWS go env (ProposeState [state0] mempty)
  where
@@ -311,8 +311,8 @@ trySatisfyIntermediates up = do
   (factProp', need') <- flip execStateT (view fFactory up, need0) $ do
     let
       addBeltsFrom
-        :: Fold ProposalEnv (Image (Map Node Rate))
-        -> StateT (FactoryProp, Rate) ProposalTacticM ()
+        :: Fold ProposalEnv (Image (Map Node PerMinute))
+        -> StateT (FactoryProp, PerMinute) ProposalTacticM ()
       addBeltsFrom source = do
         satisfied <- sumOf (source . ix item . each) <$> ask
         modifying _2 $ max 0 . subtract satisfied
@@ -338,7 +338,7 @@ nextAddCapacity
   => UnfinishedProposal
   -> ProposalStepFor
   -> Item
-  -> Rate
+  -> PerMinute
   -> [Node]
   -> m (Maybe Proposal)
 nextAddCapacity up pstepFor item rate downstreamNodes = do
@@ -378,7 +378,7 @@ tryRecipe
   => UnfinishedProposal
   -> ProposalStepFor
   -> Item
-  -> Rate
+  -> PerMinute
   -> [Node]
   -> Recipe
   -> m Node

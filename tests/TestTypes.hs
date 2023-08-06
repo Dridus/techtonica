@@ -206,10 +206,10 @@ testShortfall :: TestTree
 testShortfall = testProperty "shortfall" $
   \a b ->
     let c = shortfall (BeltDy (BeltSt testItemA) a b)
-    in  if a > b then c === Rate 0 else c === (b - a)
+    in  if a > b then c === PerMinute 0 else c === (b - a)
 
 testOverflow :: TestTree
 testOverflow = testProperty "overflow" $
   \a b ->
     let c = overflow (BeltDy (BeltSt testItemA) a b)
-    in  if a < b then c === Rate 0 else c === (a - b)
+    in  if a < b then c === PerMinute 0 else c === (a - b)

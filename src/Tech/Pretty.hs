@@ -106,9 +106,9 @@ ppFixed chopZeroes = unsafeTextWithoutNewlines . pack . showFixed chopZeroes
 ppQuantity :: Quantity -> Doc AnsiStyle
 ppQuantity = annotate (colorDull Blue) . ppRational . unQuantity
 
-ppRate :: Rate -> Doc AnsiStyle
-ppRate r =
-  (annotate (color Blue) . ppFixed False . realToFrac @Rational @Milli . (* 60) . unRate $ r)
+ppPerMinute :: PerMinute -> Doc AnsiStyle
+ppPerMinute r =
+  (annotate (color Blue) . ppFixed False . realToFrac @Rational @Milli . unPerMinute $ r)
     <> annotate (color Black) "/min"
 
 ppImage :: (q -> Doc AnsiStyle) -> Image q -> Doc AnsiStyle
@@ -174,19 +174,19 @@ ppAnonymousBeltDy b =
     <+> "carrying"
     <+> ppItem (view fItem b)
     <+> parens
-      ( ppRate (view fEntering b)
+      ( ppPerMinute (view fEntering b)
           <+> ( case compare (view fEntering b) (view fExiting b) of
                   LT ->
                     ">-"
-                      <+> annotate (colorDull Red) ("short" <+> ppRate (shortfall b))
+                      <+> annotate (colorDull Red) ("short" <+> ppPerMinute (shortfall b))
                       <+> "->"
                   EQ -> annotate (colorDull Green) ">->"
                   GT ->
                     ">-"
-                      <+> annotate (colorDull Yellow) ("over" <+> ppRate (overflow b))
+                      <+> annotate (colorDull Yellow) ("over" <+> ppPerMinute (overflow b))
                       <+> "->"
               )
-          <+> ppRate (view fExiting b)
+          <+> ppPerMinute (view fExiting b)
       )
 
 ppBeltDy :: (Node, Node) -> BeltDy -> Doc AnsiStyle
@@ -215,18 +215,18 @@ ppAnonymousClusterDy c =
     <+> ppQuantity (view fQuantity c)
     <+> ppRecipeKey (view (fRecipe . fKey) c)
       <> ":"
-    <+> ppTransfer ppRate (view fTransfer c)
+    <+> ppTransfer ppPerMinute (view fTransfer c)
 
 ppClusterDy :: Node -> ClusterDy -> Doc AnsiStyle
 ppClusterDy n c
   | view fMachine c == externalSource =
       kw ("external" <> show n)
         <+> "↓"
-        <+> ppImage ppRate (view (fTransfer . fOutputs) c)
+        <+> ppImage ppPerMinute (view (fTransfer . fOutputs) c)
   | view fMachine c == externalSink =
       kw ("byproducts" <> show n)
         <+> "↓"
-        <+> ppImage ppRate (view (fTransfer . fInputs) c)
+        <+> ppImage ppPerMinute (view (fTransfer . fInputs) c)
   | otherwise =
       ppNode n <> annotate (color Black) (pretty ':') <+> ppAnonymousClusterDy c
 
@@ -540,7 +540,7 @@ ppProposalStep = \case
     kw "add"
       <+> ppRecipeKey (view fKey recipe)
       <+> "to get"
-      <+> ppRate rate
+      <+> ppPerMinute rate
       <+> ppItem item
       <+> ( case pstepFor of
               Propose.ProposalStepForGoal ->

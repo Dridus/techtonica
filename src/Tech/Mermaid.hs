@@ -21,9 +21,9 @@ renderRecipeKey rk =
 renderQuantity :: Quantity -> TLB.Builder
 renderQuantity = TLBRF.formatRealFloat TLBRF.Fixed (Just 3) . realToFrac @Rational @Double . view _Wrapped'
 
-renderRate :: Rate -> TLB.Builder
-renderRate r =
-  (TLBRF.formatRealFloat TLBRF.Fixed (Just 3) . realToFrac @Rational @Double . (* 60) . unRate $ r)
+renderPerMinute :: PerMinute -> TLB.Builder
+renderPerMinute r =
+  (TLBRF.formatRealFloat TLBRF.Fixed (Just 3) . realToFrac @Rational @Double . unPerMinute $ r)
     <> "/min"
 
 renderImage :: (q -> TLB.Builder) -> Image q -> TLB.Builder
@@ -58,7 +58,7 @@ renderAnonymousClusterDy c =
     <> (renderRecipeKey . view (fRecipe . fKey) $ c)
     <> "<br>"
     <> "#8212;<br>" -- —
-    <> (renderTransfer renderRate . view fTransfer $ c)
+    <> (renderTransfer renderPerMinute . view fTransfer $ c)
 
 renderClusterDy :: Node -> ClusterDy -> TLB.Builder
 renderClusterDy n c
@@ -76,23 +76,23 @@ renderAnonymousBeltDy :: BeltDy -> TLB.Builder
 renderAnonymousBeltDy b =
   (renderItem . view fItem $ b)
     <> "<br>"
-    <> (renderRate . view fEntering $ b)
+    <> (renderPerMinute . view fEntering $ b)
     <> " "
     <> ( case compare (view fEntering b) (view fExiting b) of
           LT ->
             "#10522; " -- >-
               <> "short "
-              <> renderRate (shortfall b)
+              <> renderPerMinute (shortfall b)
               <> " #8594;" -- ->
           EQ -> "#8611;" -- >->
           GT ->
             "#10522; " -- >-
               <> "over "
-              <> renderRate (overflow b)
+              <> renderPerMinute (overflow b)
               <> " #8594;" -- ->
        )
     <> " "
-    <> renderRate (view fExiting b)
+    <> renderPerMinute (view fExiting b)
 
 renderBeltDy :: (Node, Node) -> BeltDy -> TLB.Builder
 renderBeltDy _ = renderAnonymousBeltDy
