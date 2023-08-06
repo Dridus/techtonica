@@ -1,8 +1,8 @@
 module Tech.Pretty where
 
-import Control.Lens (each, maximumOf, over, to, toListOf, view, _1, _2, _3)
+import Control.Lens (each, maximumOf, over, to, view, _1, _2, _3)
 import Data.Fixed (Fixed, HasResolution, Milli, showFixed)
-import Data.Graph.Inductive (DynGraph, Graph, LEdge, LNode, Node, components, context, gsel, labEdges, leveln, nodes, subgraph)
+import Data.Graph.Inductive (DynGraph, LEdge, LNode, Node, components, context, labEdges, nodes, subgraph, topsort)
 import Data.Map.Strict qualified as Map
 import Data.Sequence ((|>))
 import Data.Sequence qualified as Seq
@@ -230,13 +230,6 @@ ppClusterDy n c
   | otherwise =
       ppNode n <> annotate (color Black) (pretty ':') <+> ppAnonymousClusterDy c
 
-coNodeLine :: String
-coNodeLine = repeat '━'
-coEdgeLine :: String
-coEdgeLine = repeat '┄'
-emptyLine :: String
-emptyLine = repeat ' '
-
 ppGraph
   :: forall a b bk g
    . (DynGraph g, Ord bk, Show bk)
@@ -257,7 +250,7 @@ ppGraph ppA bkf ppB g
 
 ppNumberedGraphComponent
   :: forall a b bk g
-   . (Graph g, Ord bk, Show bk)
+   . (DynGraph g, Ord bk, Show bk)
   => (Node -> a -> Doc AnsiStyle)
   -> (b -> bk)
   -> ((Node, Node) -> b -> Doc AnsiStyle)
@@ -268,18 +261,15 @@ ppNumberedGraphComponent ppA bkf ppB (i, gc) =
 
 ppGraphComponent
   :: forall a b bk g
-   . (Graph g, Ord bk, Show bk)
+   . (DynGraph g, Ord bk, Show bk)
   => (Node -> a -> Doc AnsiStyle)
   -> (b -> bk)
   -> ((Node, Node) -> b -> Doc AnsiStyle)
   -> g a b
   -> Doc AnsiStyle
 ppGraphComponent ppA bkf ppB g =
-  render . over _2 padTracks . generate . map fst $ leveln ((,0) <$> roots) g
+  render . over _2 padTracks . generate $ topsort g
  where
-  roots :: [Node]
-  roots = toListOf (each . _2) $ gsel (\(pre, _, _, _) -> null pre) g
-
   -- Initial markers that would terminate in a supposed root node, except that we should have
   -- sorted the graph by now oriented at the roots, indicating the graph structure is not
   -- sound.
@@ -303,7 +293,7 @@ ppGraphComponent ppA bkf ppB g =
                 (\(np, ns, bk) -> ppBeltKey (np, ns) <+> viaShow bk)
                 (Map.keys danglingInitialMarkers)
           )
-        | not (Map.null danglingTrailingMarkers)
+        | not (Map.null danglingInitialMarkers)
         ]
       , map
           ( \(track, row) ->
@@ -379,15 +369,20 @@ ppGraphComponent ppA bkf ppB g =
         allMarkersAtRow = addIntroducing markersAbove
         markersBelow = addIntroducing survivingMarkers
 
+        repeatNel c = c :| repeat c
+        coNodeLine = repeatNel '━'
+        coEdgeLine = repeatNel '┄'
+        emptyLine = repeatNel ' '
+
         track
-          :: String
+          :: NonEmpty Char
           -> (Bool -> NonEmpty (Node, Node, bk) -> Maybe Char)
           -> Map (Node, Node, bk) Int
           -> Text
         track coLine hitf =
           TL.toStrict
             . TLB.toLazyText
-            . (\(_, co, tb) -> tb <> TLB.fromString (take 1 (if co then coLine else emptyLine)))
+            . (\(_, co, tb) -> tb <> (TLB.singleton . head . bool emptyLine coLine $ co))
             . renderColumns (Nothing, False, mempty)
             . sortOn snd
             . Map.toList
@@ -409,21 +404,16 @@ ppGraphComponent ppA bkf ppB g =
                 ( Just c'
                 , co || isJust hit
                 , tb
-                    <> TLB.fromString (take prefixLen (if co then coLine else emptyLine))
-                    <> TLB.singleton (fromMaybe '┃' hit)
+                    <> (TLB.fromString . take prefixLen . tail . bool emptyLine coLine $ co)
+                    <> (TLB.singleton . fromMaybe '┃' $ hit)
                 )
                 rest'
 
         nodeTrack = track coNodeLine nodeTrackHit allMarkersAtRow
         nodeTrackHit co ks = case (starting, ending, co) of
-          (True, True, True) -> Just '╋'
-          (True, True, False) -> Just '┣'
-          (True, False, True) -> Just '┳'
-          (True, False, False) -> Just '┏'
-          (False, True, True) -> Just '┻'
-          (False, True, False) -> Just '┗'
-          (False, False, True) -> Just '━'
+          (False, False, True) -> Just (head coNodeLine)
           (False, False, False) -> Nothing
+          _ -> Just '█'
          where
           starting = any (`Map.member` introducing) ks
           ending = any (`Map.member` terminating) ks
