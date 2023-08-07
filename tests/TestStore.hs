@@ -12,17 +12,17 @@ import Data.Aeson.QQ (aesonQQ)
 import Data.ByteString.Lazy qualified as BSL
 import Data.Text.Encoding qualified as TE
 import Data.Yaml qualified as Yaml
-import Prettyprinter (Doc, annotate, indent, pretty, vsep, (<+>))
+import Prettyprinter (Doc, annotate, indent, pretty, viaShow, vsep, (<+>))
 import Prettyprinter.Render.Terminal (AnsiStyle, Color (White), color, colorDull)
 import Tech.Pretty (errDoc, kw, ppFactorySt, ppLoadError, ppLoadWarning)
 import Tech.Store
-import Tech.TestFixtures (linearSt, testRecipes)
+import Tech.TestFixtures (linearSt, testEnv, withTestEnv)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (Assertion, testCase)
-import TestUtils (assertBoolDoc, assertFailureDoc, factoryStShouldBe)
+import TestUtils (assertBoolDoc, assertFailureDoc, factoryEnvShouldBe, factoryStShouldBe)
 
 tests :: TestTree
-tests = testGroup "Store" [linear]
+tests = testGroup "Store" [linear, env]
 
 renderYaml :: ToJSON a => a -> Doc AnsiStyle
 renderYaml = annotate (colorDull White) . pretty . TE.decodeUtf8 . Yaml.encode
@@ -71,7 +71,7 @@ linear =
     "linear"
     [ testCase
         "load"
-        ( case loadFactory testRecipes (Yaml.encode linearYaml) of
+        ( case withTestEnv $ loadFactory (Yaml.encode linearYaml) of
             Left err -> assertFailureDoc . ppLoadError $ err
             Right (warnings, factSt) -> do
               assertBoolDoc
@@ -85,7 +85,30 @@ linear =
                 (null warnings)
               factSt `factoryStShouldBe` linearSt
         )
-    , testCase "store" (storeFactory mempty linearSt `yamlShouldBe` linearYaml)
+    , testCase "store" (storeFactory linearSt `yamlShouldBe` linearYaml)
+    ]
+
+env :: TestTree
+env =
+  testGroup
+    "env"
+    [ testCase
+        "load testEnv"
+        ( case loadEnv (Yaml.encode testEnvYaml) of
+            Left err -> assertFailureDoc . ppLoadError $ err
+            Right (warnings, fenv) -> do
+              assertBoolDoc
+                ( vsep
+                    [ errDoc "warnings during load:"
+                    , indent 2 . vsep . fmap ppLoadWarning $ warnings
+                    , errDoc "but loaded:"
+                    , indent 2 . viaShow $ fenv
+                    ]
+                )
+                (null warnings)
+              fenv `factoryEnvShouldBe` testEnv
+        )
+    , testCase "store testEnv" $ storeEnv testEnv `yamlShouldBe` testEnvYaml
     ]
 
 linearYaml :: Aeson.Value
@@ -101,7 +124,7 @@ linearYaml =
           "denominator": 1
         },
         "recipeKey": {
-          "machine": "test",
+          "machineIdentifier": "test",
           "identifier": "a1b1"
         }
       },
@@ -112,14 +135,28 @@ linearYaml =
           "denominator": 1
         },
         "recipeKey": {
-          "machine": "test",
+          "machineIdentifier": "test",
           "identifier": "b1c1"
         }
       }
-    ],
-    "customRecipes": [
+    ]
+  }
+  |]
+
+testEnvYaml :: Aeson.Value
+testEnvYaml =
+  [aesonQQ|
+  {
+    "items": [ "testA", "testB", "testC" ],
+    "machines": [
       {
-        "key": {"machine": "test", "identifier": "a1b1"},
+        "identifier": "test",
+        "parallelism": {"numerator": 1, "denominator": 1}
+      }
+    ],
+    "recipes": [
+      {
+        "key": {"machineIdentifier": "test", "identifier": "a1b1"},
         "cycleTime": 60,
         "transfer": {
           "inputs": {"testA": {"numerator": 1, "denominator": 1}},
@@ -127,7 +164,7 @@ linearYaml =
         }
       },
       {
-        "key": {"machine": "test", "identifier": "b1c1"},
+        "key": {"machineIdentifier": "test", "identifier": "b1c1"},
         "cycleTime": 60,
         "transfer": {
           "inputs": {"testB": {"numerator": 1, "denominator": 1}},

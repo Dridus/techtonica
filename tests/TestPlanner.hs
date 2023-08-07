@@ -6,7 +6,7 @@ import Data.Time.Clock (NominalDiffTime, secondsToNominalDiffTime)
 import Prettyprinter (pretty)
 import Tech.Planner.Estimate
 import Tech.Pretty (ppAnonymousClusterDy)
-import Tech.TestFixtures (expectedLinearDy, linearSt, testItemA, testItemB, testMachine)
+import Tech.TestFixtures (expectedLinearDy, linearSt, testItemA, testItemB, testMachineId)
 import Tech.Types
 import Test.QuickCheck (Positive (..))
 import Test.Tasty (TestTree, testGroup)
@@ -36,49 +36,54 @@ testAssignClusterRates =
     "assignClusterRates"
     [ quantityProportional
     , cycleTimeInverseProportional
+    , parallelismProportional
     ]
  where
+  peqAssigned = peqGraph feqClusterDy ppAnonymousClusterDy id (==) pretty
   quantityProportional = testProperty "rates proportional to quantity" $
     \(Positive qty) ->
-      peqGraph
-        feqClusterDy
-        ppAnonymousClusterDy
-        id
-        (==)
-        pretty
-        (assignClusterRates (mkGraph [trivialClSt 60.0 qty] []))
-        (mkGraph [trivialClDy 60.0 qty (PerMinute $ 10.0 * unQuantity qty) (PerMinute $ unQuantity qty)] edges)
+      assignClusterRates (mkGraph [trivialClSt 60.0 1.0 qty] [])
+        `peqAssigned` mkGraph
+          [ trivialClDy
+              60.0
+              1.0
+              qty
+              (PerMinute $ 10.0 * unQuantity qty)
+              (PerMinute $ unQuantity qty)
+          ]
+          edges
   cycleTimeInverseProportional = testProperty "rates inversely proportional to cycle time" $
     \(Positive (secondsToNominalDiffTime -> time)) ->
-      peqGraph
-        feqClusterDy
-        ppAnonymousClusterDy
-        id
-        (==)
-        pretty
-        (assignClusterRates (mkGraph [trivialClSt time 1.0] []))
-        ( mkGraph
-            [ trivialClDy
-                time
-                1.0
-                (PerMinute $ 10.0 / realToFrac (time / 60))
-                (PerMinute $ 1.0 / realToFrac (time / 60))
-            ]
-            edges
-        )
+      assignClusterRates (mkGraph [trivialClSt time 1.0 1.0] [])
+        `peqAssigned` mkGraph
+          [ trivialClDy
+              time
+              1.0
+              1.0
+              (PerMinute $ 10.0 / realToFrac (time / 60))
+              (PerMinute $ 1.0 / realToFrac (time / 60))
+          ]
+          edges
+
+  parallelismProportional = testProperty "rates proportional to parallelism" $
+    \(Positive par) ->
+      assignClusterRates (mkGraph [trivialClSt 60.0 par 1.0] [])
+        `peqAssigned` mkGraph [trivialClDy 60.0 par 1.0 (PerMinute $ 10.0 * par) (PerMinute par)] edges
   trivialRecipe time =
     Recipe
-      (RecipeKey testMachine "trivial")
+      (RecipeKey testMachineId "trivial")
       time
       ([(testItemA, Quantity 10.0)] :>>: [(testItemB, Quantity 1.0)])
-  trivialClDy :: NominalDiffTime -> Quantity -> PerMinute -> PerMinute -> LNode ClusterDy
-  trivialClDy time qty ein eout =
+  trivialMachine :: Rational -> Machine
+  trivialMachine = Machine testMachineId
+  trivialClDy :: NominalDiffTime -> Rational -> Quantity -> PerMinute -> PerMinute -> LNode ClusterDy
+  trivialClDy time par qty ein eout =
     (1,) $
       ClusterDy
-        (ClusterSt (trivialRecipe time) qty)
+        (snd $ trivialClSt time par qty)
         ([(testItemA, ein)] :>>: [(testItemB, eout)])
-  trivialClSt :: NominalDiffTime -> Quantity -> LNode ClusterSt
-  trivialClSt time qty = (1,) $ ClusterSt (trivialRecipe time) qty
+  trivialClSt :: NominalDiffTime -> Rational -> Quantity -> LNode ClusterSt
+  trivialClSt time par qty = (1,) $ ClusterSt (trivialRecipe time) (trivialMachine par) qty
   edges :: [LEdge ()]
   edges = []
 

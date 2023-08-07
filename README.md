@@ -139,14 +139,14 @@ state goes away without warning, so make sure to `saveFactory`.
     ghci> 
   ```
 
-- `addCluster :: IO Recipe -> Quantity -> IO Node`
+- `addCluster :: MachineIdentifier -> RecipeIdentifier -> Quantity -> IO Node`
 
   Add a cluster (of machines) to the current factory. The first parameter is `IO Recipe` so
   that `findRecipe` fits in there. You can `pure` some recipe you already have let-bound also.
 
   E.g.:
   ```
-    ghci> addCluster (findRecipe planter "kindlevine") 1
+    ghci> addCluster "planter" "kindlevine" 1
     4
   ```
 - `editCluster :: Node -> (ClusterSt -> ClusterSt) -> IO ()`
@@ -298,22 +298,52 @@ state goes away without warning, so make sure to `saveFactory`.
 
   If you regret, see also `undo`.
 
-### Recipes and Items
+### Items, Machines, and Recipes
 
-- `loadRecipes :: FilePath -> IO ()`
+- `loadEnv :: FilePath -> IO ()`
 
-  Load recipes and items from a YAML file.
+  Load items, machines, and recipes from a YAML file.
 
-- `saveRecipes :: FilePath -> IO ()`
+- `saveEnv :: FilePath -> IO ()`
 
-  Save recipes and items to a YAML file.
+  Save current items, machines, and recipes to a YAML file.
 
-- `findRecipe :: Machine -> RecipeIdentifier -> IO Recipe`
+- `listItems :: IO ()`
 
-  Look for a recipe, `fail`ing if not found. This looks in the current recipes state, which
-  starts out with only the builtin recipes but you can add to.
+  List all registered items.
 
-  Intended for use as the first argument to `addCluster`.
+- `addItem :: Item -> IO ()`
+
+  Add an item to the set of known items.
+
+- `delItem :: Item -> IO ()`
+
+  Delete an item to the set of known items.
+
+- `listMachines :: IO ()`
+
+  List all machines currently in state.
+
+- `addMachine :: MachineIdentifier -> IO ()`
+
+  Add a machine with the standard parallelism of 1.
+
+- `addMachine' :: MachineIdentifier -> Rational -> IO ()`
+
+  Add a machine with a specific parallelism.
+
+- `editMachine :: MachineIdentifier -> (Machine -> Machine) -> IO ()`
+
+  Edit a machine in-place. Not different from `delMachine` and `addMachine`, just more
+  convenient.
+
+- `delMachine :: MachineIdentifier -> IO ()`
+
+  Delete a machine along with all recipes associated with it.
+
+- `findRecipes :: (Recipe -> Bool) -> IO ()`
+
+  List all recipes which match some predicate.
 
 - `listAllRecipes :: IO ()`
 
@@ -340,18 +370,6 @@ state goes away without warning, so make sure to `saveFactory`.
 - `delRecipe :: Machine -> RecipeIdentifier -> IO ()`
 
   Like `addRecipe`, but more violent. And with fewer questions.
-
-- `listItems :: IO ()`
-
-  List all registered items.
-
-- `addItem :: Item -> IO ()`
-
-  Add an item to the set of known items.
-
-- `delItem :: Item -> IO ()`
-
-  Delete an item to the set of known items.
 
 ## Machines?
 

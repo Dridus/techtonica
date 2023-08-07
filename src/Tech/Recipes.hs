@@ -1,17 +1,18 @@
 module Tech.Recipes where
 
-import Control.Lens (each, filtered, has, ix, preview, to, toListOf, view)
+import Control.Lens (each, filtered, has, ix, preview, to, toListOf, view, Traversal')
 import Data.Map.Strict qualified as Map
 import Tech.Types
 
-type Recipes = Map Machine (Map RecipeIdentifier Recipe)
+recipeKeyOptic :: RecipeKey -> Traversal' Recipes Recipe
+recipeKeyOptic (RecipeKey m rid) = ix m . ix rid
 
 findRecipeByKey :: Recipes -> RecipeKey -> Maybe Recipe
-findRecipeByKey recipes (RecipeKey m rid) = preview (ix m . ix rid) recipes
+findRecipeByKey recipes rk = preview (recipeKeyOptic rk) recipes
 
 insertRecipe :: Recipe -> Recipes -> Recipes
 insertRecipe r =
-  Map.insertWith (<>) (view (fKey . fMachine) r) (Map.singleton (view (fKey . fIdentifier) r) r)
+  Map.insertWith (<>) (view (fKey . fMachineIdentifier) r) (Map.singleton (view (fKey . fIdentifier) r) r)
 
 indexRecipes :: [Recipe] -> Recipes
 indexRecipes =
@@ -20,13 +21,10 @@ indexRecipes =
       ( each
           . to
             ( Map.singleton
-                <$> view (fKey . fMachine)
+                <$> view (fKey . fMachineIdentifier)
                 <*> (Map.singleton <$> view (fKey . fIdentifier) <*> id)
             )
       )
-
-unindexRecipes :: Recipes -> [Recipe]
-unindexRecipes = toListOf (each . each)
 
 filterRecipes :: (Recipe -> Bool) -> Recipes -> [Recipe]
 filterRecipes p = toListOf (each . each . filtered p)

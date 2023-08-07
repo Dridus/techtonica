@@ -1,22 +1,45 @@
 module TestUtils where
 
-import Control.Lens (Wrapped (Unwrapped), andOf, each, view, _3, _Wrapped')
+import Control.Lens (Wrapped (Unwrapped), andOf, each, to, toListOf, view, _3, _Just, _Wrapped')
 import Data.Fixed (Fixed, HasResolution)
 import Data.Graph.Inductive (Graph, Node, labEdges, labNodes)
 import Data.Map.Strict qualified as Map
 import Data.Semialign.Indexed (ialignWith)
+import Data.Set qualified as Set
 import Data.Text (unpack)
 import Data.These (These (That, These, This))
 import Data.Time.Clock (nominalDiffTimeToSeconds)
-import Prettyprinter (Doc, align, defaultLayoutOptions, indent, layoutPretty, pretty, viaShow, vsep, (<+>))
+import Prettyprinter (
+  Doc,
+  align,
+  defaultLayoutOptions,
+  indent,
+  layoutPretty,
+  pretty,
+  viaShow,
+  vsep,
+  (<+>),
+ )
 import Prettyprinter.Render.Terminal (AnsiStyle, renderStrict)
-import Tech.Pretty qualified as P
+import Tech.Pretty (
+  kw,
+  parens,
+  ppAnonymousBeltDy,
+  ppAnonymousBeltSt,
+  ppAnonymousClusterDy,
+  ppAnonymousClusterSt,
+  ppItem,
+  ppMachineIdentifier,
+  ppQuantity,
+  ppRecipeKey,
+  ppTransfer,
+ )
 import Tech.Types
 import Test.QuickCheck (Property, conjoin, counterexample, (.&&.), (===))
 import Test.Tasty.HUnit (Assertion, assertBool, assertFailure)
 
 neOp :: Doc AnsiStyle
-neOp = P.kw "/="
+neOp = kw "/="
 
 assertFailureDoc :: HasCallStack => Doc AnsiStyle -> Assertion
 assertFailureDoc = assertFailure . unpack . renderStrict . layoutPretty defaultLayoutOptions
@@ -184,8 +207,8 @@ peqRecipe a b =
 beltStShouldBe :: HasCallStack => BeltSt -> BeltSt -> Assertion
 beltStShouldBe a b =
   unless (a == b) . assertFailureDoc . vsep $
-    [ P.ppAnonymousBeltSt a <+> neOp <+> P.ppAnonymousBeltSt b
-    , P.parens $ viaShow a <+> neOp <+> viaShow b
+    [ ppAnonymousBeltSt a <+> neOp <+> ppAnonymousBeltSt b
+    , parens $ viaShow a <+> neOp <+> viaShow b
     ]
 
 infix 4 `feqBeltDy`
@@ -198,8 +221,8 @@ feqBeltDy a b =
 beltDyShouldBe :: HasCallStack => BeltDy -> BeltDy -> Assertion
 beltDyShouldBe a b =
   unless (a `feqBeltDy` b) . assertFailureDoc . vsep $
-    [ P.ppAnonymousBeltDy a <+> neOp <+> P.ppAnonymousBeltDy b
-    , P.parens $ viaShow a <+> neOp <+> viaShow b
+    [ ppAnonymousBeltDy a <+> neOp <+> ppAnonymousBeltDy b
+    , parens $ viaShow a <+> neOp <+> viaShow b
     ]
 
 infix 4 `feqClusterSt`
@@ -211,8 +234,8 @@ feqClusterSt a b =
 clusterStShouldBe :: HasCallStack => ClusterSt -> ClusterSt -> Assertion
 clusterStShouldBe a b =
   unless (a `feqClusterSt` b) . assertFailureDoc . vsep $
-    [ P.ppAnonymousClusterSt a <+> neOp <+> P.ppAnonymousClusterSt b
-    , P.parens $ viaShow a <+> neOp <+> viaShow b
+    [ ppAnonymousClusterSt a <+> neOp <+> ppAnonymousClusterSt b
+    , parens $ viaShow a <+> neOp <+> viaShow b
     ]
 
 infix 4 `feqClusterDy`
@@ -225,8 +248,8 @@ feqClusterDy a b =
 clusterDyShouldBe :: HasCallStack => ClusterDy -> ClusterDy -> Assertion
 clusterDyShouldBe a b =
   unless (a `feqClusterDy` b) . assertFailureDoc . vsep $
-    [ P.ppAnonymousClusterDy a <+> neOp <+> P.ppAnonymousClusterDy b
-    , P.parens $ viaShow a <+> neOp <+> viaShow b
+    [ ppAnonymousClusterDy a <+> neOp <+> ppAnonymousClusterDy b
+    , parens $ viaShow a <+> neOp <+> viaShow b
     ]
 
 ppGraph :: (Graph g, Show a, Show b) => (a -> Doc ann) -> (b -> Doc ann) -> g a b -> Doc ann
@@ -329,8 +352,77 @@ peqGraph eqA ppA bkf eqB ppB ga gb =
 
 factoryStShouldBe :: HasCallStack => FactorySt -> FactorySt -> Assertion
 factoryStShouldBe =
-  graphShouldBe (==) P.ppAnonymousClusterSt (view fItem) (==) P.ppAnonymousBeltSt
+  graphShouldBe (==) ppAnonymousClusterSt (view fItem) (==) ppAnonymousBeltSt
 
 factoryDyShouldBe :: HasCallStack => FactoryDy -> FactoryDy -> Assertion
 factoryDyShouldBe =
-  graphShouldBe feqClusterDy P.ppAnonymousClusterDy (view fItem) feqBeltDy P.ppAnonymousBeltDy
+  graphShouldBe feqClusterDy ppAnonymousClusterDy (view fItem) feqBeltDy ppAnonymousBeltDy
+
+fcmpItems :: Set Item -> Set Item -> [Doc AnsiStyle]
+fcmpItems a b =
+  (render "left" <$> toList (Set.difference a b))
+    <> (render "right" <$> toList (Set.difference b a))
+ where
+  render side i = "item only in" <+> side <> ":" <+> ppItem i
+
+fcmpShow :: (Eq a, Show a) => a -> a -> [Doc AnsiStyle]
+fcmpShow a b
+  | a == b = []
+  | otherwise = [viaShow a <+> "/=" <+> viaShow b]
+
+fcmpMachine :: Machine -> Machine -> [Doc AnsiStyle]
+fcmpMachine a b =
+  (("identifier" <+>) <$> (fcmpShow `on` view fIdentifier) a b)
+    ++ (("parallelism" <+>) <$> (fcmpShow `on` view fParallelism) a b)
+
+fcmpMachines :: Machines -> Machines -> [Doc AnsiStyle]
+fcmpMachines a b = toListOf (each . _Just) $ ialignWith fcmp a b
+ where
+  fcmp mid (This _) = Just $ "machine only in left:" <+> ppMachineIdentifier mid
+  fcmp mid (That _) = Just $ "machine only in right:" <+> ppMachineIdentifier mid
+  fcmp mid (These ma mb) =
+    let diffs = fcmpMachine ma mb
+    in  if null diffs
+          then Nothing
+          else
+            Just $
+              vsep
+                [ "machine" <+> ppMachineIdentifier mid <+> "differs:"
+                , indent 2 . vsep $ diffs
+                ]
+
+fcmpTransferQuantity :: Transfer Quantity -> Transfer Quantity -> [Doc AnsiStyle]
+fcmpTransferQuantity a b
+  | a == b = []
+  | otherwise = [ppTransfer ppQuantity a <+> "/=" <+> ppTransfer ppQuantity b]
+
+fcmpRecipe :: Recipe -> Recipe -> [Doc AnsiStyle]
+fcmpRecipe a b =
+  (("machine" <+>) <$> (fcmpShow `on` view (fKey . fMachineIdentifier)) a b)
+    ++ (("identifier" <+>) <$> (fcmpShow `on` view (fKey . fIdentifier)) a b)
+    ++ (("cycle time" <+>) <$> (fcmpShow `on` view fCycleTime) a b)
+    ++ (("transfer" <+>) <$> (fcmpTransferQuantity `on` view fTransfer) a b)
+
+fcmpRecipes :: Recipes -> Recipes -> [Doc AnsiStyle]
+fcmpRecipes a b = toListOf (each . _Just) $ (ialignWith fcmp `on` flattenRecipes) a b
+ where
+  flattenRecipes :: Recipes -> Map RecipeKey Recipe
+  flattenRecipes = Map.fromList . toListOf (each . each . to (view fKey &&& id))
+  fcmp rk (This _) = Just $ "recipe only in left:" <+> ppRecipeKey rk
+  fcmp rk (That _) = Just $ "recipe only in right:" <+> ppRecipeKey rk
+  fcmp rk (These ra rb) =
+    let diffs = fcmpRecipe ra rb
+    in  if null diffs
+          then Nothing
+          else
+            Just $
+              vsep ["recipe" <+> ppRecipeKey rk <+> "differs:", indent 2 . vsep $ diffs]
+
+factoryEnvShouldBe :: HasCallStack => FactoryEnv -> FactoryEnv -> Assertion
+factoryEnvShouldBe a b =
+  unless (a == b) . assertFailure . show . vsep $
+    "actual env does not match expected env:" : (iDiffs <> mDiffs <> rDiffs)
+ where
+  iDiffs = (fcmpItems `on` view fItems) a b
+  mDiffs = (fcmpMachines `on` view fMachines) a b
+  rDiffs = (fcmpRecipes `on` view fRecipes) a b

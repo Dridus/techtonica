@@ -2,14 +2,16 @@ module Tech.TestFixtures where
 
 import Data.Graph.Inductive (Gr, mkGraph)
 import Data.Set qualified as Set
-import Tech.Machines (externalSink, externalSource)
 import Tech.Planner.Estimate (
   assignClusterRates,
   estimate,
   externalClusterDy,
+  externalSink,
+  externalSource,
  )
-import Tech.Recipes (Recipes, indexRecipes)
+import Tech.Recipes (indexRecipes)
 import Tech.Types
+import qualified Data.Map.Strict as Map
 
 testItemA, testItemB, testItemC :: Item
 testItemA = Item "testA"
@@ -19,23 +21,40 @@ testItemC = Item "testC"
 testItems :: Set Item
 testItems = Set.fromList [testItemA, testItemB, testItemC]
 
+testMachineId :: MachineIdentifier
+testMachineId = "test"
+
 testMachine :: Machine
-testMachine = Machine "test"
+testMachine = Machine testMachineId 1.0
+
+testMachines :: Machines
+testMachines = Map.singleton testMachineId testMachine
 
 testTransferA1B1, testTransferB1C1 :: Num q => Transfer q
 testTransferA1B1 = [(testItemA, 1)] :>>: [(testItemB, 1)]
 testTransferB1C1 = [(testItemB, 1)] :>>: [(testItemC, 1)]
 
 testRecipeA1B1, testRecipeB1C1 :: Recipe
-testRecipeA1B1 = Recipe (RecipeKey testMachine "a1b1") 60 testTransferA1B1
-testRecipeB1C1 = Recipe (RecipeKey testMachine "b1c1") 60 testTransferB1C1
+testRecipeA1B1 = Recipe (RecipeKey testMachineId "a1b1") 60 testTransferA1B1
+testRecipeB1C1 = Recipe (RecipeKey testMachineId "b1c1") 60 testTransferB1C1
 
 testRecipes :: Recipes
 testRecipes = indexRecipes [testRecipeA1B1, testRecipeB1C1]
 
 testClusterA1B1, testClusterB1C1 :: ClusterSt
-testClusterA1B1 = ClusterSt testRecipeA1B1 1
-testClusterB1C1 = ClusterSt testRecipeB1C1 1
+testClusterA1B1 = ClusterSt testRecipeA1B1 testMachine 1
+testClusterB1C1 = ClusterSt testRecipeB1C1 testMachine 1
+
+testEnv :: FactoryEnv
+testEnv =
+  FactoryEnv
+    { _factoryEnv_items = testItems
+    , _factoryEnv_machines = testMachines
+    , _factoryEnv_recipes = testRecipes
+    }
+
+withTestEnv :: (forall m. MonadReader FactoryEnv m => m a) -> a
+withTestEnv = ($ testEnv)
 
 externalSourceDy :: Image PerMinute -> ClusterDy
 externalSourceDy outs = externalClusterDy externalSource (Transfer mempty outs)

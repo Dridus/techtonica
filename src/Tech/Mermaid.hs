@@ -6,7 +6,7 @@ import Data.Map.Strict qualified as Map
 import Data.Text.Lazy.Builder qualified as TLB
 import Data.Text.Lazy.Builder.Int qualified as TLBI
 import Data.Text.Lazy.Builder.RealFloat qualified as TLBRF
-import Tech.Machines (externalSink, externalSource)
+import Tech.Planner.Estimate (externalSinkId, externalSourceId)
 import Tech.Types
 
 renderItem :: Item -> TLB.Builder
@@ -14,7 +14,7 @@ renderItem = TLB.fromText . view _Wrapped'
 
 renderRecipeKey :: RecipeKey -> TLB.Builder
 renderRecipeKey rk =
-  (TLB.fromText . view (fMachine . _Wrapped') $ rk)
+  (TLB.fromText . view (fMachineIdentifier . _Wrapped') $ rk)
     <> "/"
     <> (TLB.fromText . view (fIdentifier . _Wrapped') $ rk)
 
@@ -62,8 +62,8 @@ renderAnonymousClusterDy c =
 
 renderClusterDy :: Node -> ClusterDy -> TLB.Builder
 renderClusterDy n c
-  | view fMachine c == externalSource = "external source " <> TLBI.decimal n
-  | view fMachine c == externalSink = "byproducts " <> TLBI.decimal n
+  | view (fMachine . fIdentifier) c == externalSourceId = "external source " <> TLBI.decimal n
+  | view (fMachine . fIdentifier) c == externalSinkId = "byproducts " <> TLBI.decimal n
   | otherwise = "[#" <> TLBI.decimal n <> "] " <> renderAnonymousClusterDy c
 
 renderAnonymousBeltSt :: BeltSt -> TLB.Builder

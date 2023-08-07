@@ -26,6 +26,7 @@ import Control.Lens (
   _2,
   _Wrapped',
  )
+import Control.Monad.Except (MonadError, throwError)
 import Control.Monad.RWS.Strict (RWS, runRWS)
 import Data.Align (alignWith)
 import Data.Graph.Inductive (Gr, Node)
@@ -37,7 +38,7 @@ import Data.These (These (..))
 import Tech.Graph (allAdjLabels, disjunctContexts, edges, nodeLabel, nodes)
 import Tech.LensOptions (techFields)
 import Tech.Planner.Estimate (byproductsOf, estimate, feedstocksOf, overflowsOf, recipeRate)
-import Tech.Recipes (Recipes, filterRecipes, producing)
+import Tech.Recipes (filterRecipes, producing)
 import Tech.Types
 
 -- * Errors
@@ -91,8 +92,10 @@ fixConstraints pc =
 
 data ProposalError
   = NoRecipesProduceItem
-      {_planningError_item :: Item}
+      {_proposalError_item :: Item}
   | ProposalStepsExceeded
+  | RecipeMachineNotFound
+      {_proposalError_recipeKey :: RecipeKey}
 deriving stock instance Eq ProposalError
 deriving stock instance Ord ProposalError
 deriving stock instance Show ProposalError
@@ -142,13 +145,16 @@ type Proposals = Seq Proposal
 -- ** Internal State
 
 data ProposeEnv = ProposeEnv
-  { _proposeEnv_recipes :: Recipes
+  { _proposeEnv_parentEnv :: FactoryEnv
   , _proposeEnv_original :: FactorySt
   , _proposeEnv_goal :: Image PerMinute
   , _proposeEnv_constraints :: ProposalConstraints Identity
   }
 deriving stock instance Show ProposeEnv
 makeLensesWith techFields ''ProposeEnv
+instance Has_fItems ProposeEnv (Set Item) where fItems = fParentEnv . fItems
+instance Has_fMachines ProposeEnv Machines where fMachines = fParentEnv . fMachines
+instance Has_fRecipes ProposeEnv Recipes where fRecipes = fParentEnv . fRecipes
 
 data ProposalEnv = ProposalEnv
   { _proposalEnv_parentEnv :: ProposeEnv
@@ -158,6 +164,8 @@ data ProposalEnv = ProposalEnv
   }
 deriving stock instance Show ProposalEnv
 makeLensesWith techFields ''ProposalEnv
+instance Has_fItems ProposalEnv (Set Item) where fItems = fParentEnv . fItems
+instance Has_fMachines ProposalEnv Machines where fMachines = fParentEnv . fMachines
 instance Has_fRecipes ProposalEnv Recipes where fRecipes = fParentEnv . fRecipes
 instance Has_fOriginal ProposalEnv FactorySt where fOriginal = fParentEnv . fOriginal
 instance Has_fGoal ProposalEnv (Image PerMinute) where fGoal = fParentEnv . fGoal
@@ -183,13 +191,19 @@ makeLensesWith techFields ''ProposeState
 maxProposalSteps :: Int
 maxProposalSteps = 100
 
-propose :: Recipes -> FactorySt -> Image PerMinute -> ProposalConstraints Last -> Proposals
-propose recipes gin needs (fixConstraints -> constraints) =
-  view _1 $ runRWS go env (ProposeState [state0] mempty)
+propose
+  :: MonadReader FactoryEnv m
+  => FactorySt
+  -> Image PerMinute
+  -> ProposalConstraints Last
+  -> m Proposals
+propose gin needs (fixConstraints -> constraints) =
+  ask <&> \parentEnv ->
+    view _1 $ runRWS go (env parentEnv) (ProposeState [state0] mempty)
  where
-  env =
+  env parentEnv =
     ProposeEnv
-      { _proposeEnv_recipes = recipes
+      { _proposeEnv_parentEnv = parentEnv
       , _proposeEnv_original = gin
       , _proposeEnv_goal = needs
       , _proposeEnv_constraints = constraints
@@ -334,7 +348,11 @@ trySatisfyIntermediates up = do
     downstreamNodes
 
 nextAddCapacity
-  :: (MonadReader r m, Has_fRecipes r Recipes, MonadState ProposeState m)
+  :: ( MonadReader r m
+     , Has_fMachines r Machines
+     , Has_fRecipes r Recipes
+     , MonadState ProposeState m
+     )
   => UnfinishedProposal
   -> ProposalStepFor
   -> Item
@@ -350,13 +368,12 @@ nextAddCapacity up pstepFor item rate downstreamNodes = do
   -- sorted by some optimality, e.g. total external resource cost
   recipes <- view fRecipes
   let candidateRecipes = filterRecipes (producing item) recipes
-  if null candidateRecipes
-    then pure . Just $ failUnfinishedProposal up (NoRecipesProduceItem item)
-    else do
-      traverse_
-        (void . tryRecipe up pstepFor item rate downstreamNodes)
-        candidateRecipes
-      pure Nothing
+  res <- runExceptT $ do
+    when (null candidateRecipes) $ throwError (NoRecipesProduceItem item)
+    traverse_
+      (void . tryRecipe up pstepFor item rate downstreamNodes)
+      candidateRecipes
+  pure $ either (Just . failUnfinishedProposal up) (const Nothing) res
 
 nextUnfinishedProposal :: MonadState ProposeState m => UnfinishedProposal -> ProposalStep -> FactoryProp -> m ()
 nextUnfinishedProposal progenitor step factProp = modifying fUnfinished (offspring :)
@@ -374,7 +391,11 @@ subtractSupply = alignWith $ \case
   These given need -> max 0 (need - given)
 
 tryRecipe
-  :: MonadState ProposeState m
+  :: ( MonadReader r m
+     , Has_fMachines r Machines
+     , MonadState ProposeState m
+     , MonadError ProposalError m
+     )
   => UnfinishedProposal
   -> ProposalStepFor
   -> Item
@@ -382,7 +403,26 @@ tryRecipe
   -> [Node]
   -> Recipe
   -> m Node
-tryRecipe up pstepFor item rate downstreamNodes recipe =
+tryRecipe up pstepFor item rate downstreamNodes recipe = do
+  let rk = view fKey recipe
+  let mid = view fMachineIdentifier rk
+  machine <- maybe (throwError $ RecipeMachineNotFound rk) pure =<< preview (fMachines . ix mid)
+  let productionRate =
+        fromMaybe
+          (error "tryRecipe: recipe does not produce requested item")
+          . preview (fOutputs . ix item)
+          $ recipeRate (view fParallelism machine) recipe
+  let clust =
+        ClusterSt
+          { _clusterSt_recipe = recipe
+          , _clusterSt_machine = machine
+          , _clusterSt_quantity = fromIntegral @Integer . ceiling $ rate / productionRate
+          }
+  let factProp =
+        foldl'
+          (\g ns -> over (edges . ix (node, ns)) (beltSt :) g)
+          (set (nodes . at node) (Just (clust, New)) $ view fFactory up)
+          downstreamNodes
   node <$ nextUnfinishedProposal up step factProp
  where
   step =
@@ -392,20 +432,5 @@ tryRecipe up pstepFor item rate downstreamNodes recipe =
       , _proposalStep_rate = rate
       , _proposalStep_for = pstepFor
       }
-  productionRate =
-    fromMaybe
-      (error "tryRecipe: recipe does not produce requested item")
-      . preview (fOutputs . ix item)
-      $ recipeRate 1.0 recipe
-  clust =
-    ClusterSt
-      { _clusterSt_recipe = recipe
-      , _clusterSt_quantity = fromIntegral @Integer . ceiling $ rate / productionRate
-      }
   node = newNode (view fFactory up)
   beltSt = (BeltSt {_beltSt_item = item}, New)
-  factProp =
-    foldl'
-      (\g ns -> over (edges . ix (node, ns)) (beltSt :) g)
-      (set (nodes . at node) (Just (clust, New)) $ view fFactory up)
-      downstreamNodes

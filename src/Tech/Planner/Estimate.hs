@@ -13,22 +13,31 @@ import Control.Lens (
   sumOf,
   toListOf,
   view,
+  _Wrapped',
  )
 import Data.Align (align)
 import Data.Graph.Inductive (Context, Gr, LEdge, LNode, Node, components, labEdges, labNodes, mkGraph, subgraph)
 import Data.Map.Strict qualified as Map
 import Data.These (These (That, These, This), fromThese)
 import Tech.Graph (contexts, edges, nodeLabel, nodes, preAdjs, sucAdjs)
-import Tech.Machines (externalSink, externalSource)
 import Tech.Types
 
-externalRecipe :: Machine -> Recipe
+externalRecipe :: MachineIdentifier -> Recipe
 externalRecipe m = Recipe (RecipeKey m "<external>") 0.0 (Transfer mempty mempty)
+
+externalSourceId, externalSinkId :: MachineIdentifier
+externalSourceId = MachineIdentifier "<external source>"
+externalSinkId = MachineIdentifier "<external sink>"
+
+externalSource, externalSink :: Machine
+externalSource = Machine {_machine_identifier = externalSourceId, _machine_parallelism = 1}
+externalSink = Machine {_machine_identifier = externalSinkId, _machine_parallelism = 1}
 
 externalClusterSt :: Machine -> ClusterSt
 externalClusterSt m =
   ClusterSt
-    { _clusterSt_recipe = externalRecipe m
+    { _clusterSt_recipe = externalRecipe (view fIdentifier m)
+    , _clusterSt_machine = m
     , _clusterSt_quantity = 0.0
     }
 
@@ -60,18 +69,19 @@ estimateComponent nsource nsync =
     . assignClusterRates
 
 assignClusterRates :: Gr ClusterSt b -> Gr ClusterDy b
-assignClusterRates = over (nodes . each) $ \su ->
+assignClusterRates = over (nodes . each) $ \cst ->
   let
-    _clusterDy_static = su
-    _clusterDy_transfer = recipeRate (view fQuantity su) (view fRecipe su)
+    _clusterDy_static = cst
+    _clusterDy_transfer = recipeRate
+      (view (fQuantity . _Wrapped') cst * view (fMachine . fParallelism) cst) (view fRecipe cst)
   in
     ClusterDy {..}
 
-recipeRate :: Quantity -> Recipe -> Transfer PerMinute
-recipeRate q r =
+recipeRate :: Rational -> Recipe -> Transfer PerMinute
+recipeRate coef r =
   fmap (PerMinute . runIdentity)
-    . flip divT (realToFrac . (/60) . view fCycleTime $ r)
-    . mulT (unQuantity q)
+    . flip divT (realToFrac . (/ 60) . view fCycleTime $ r)
+    . mulT coef
     . fmap (Identity . unQuantity)
     . view fTransfer
     $ r

@@ -18,6 +18,23 @@ import Tech.Ghci.Factory as Export (
   setFactory,
   verifyFactory,
  )
+import Tech.Ghci.FactoryEnv as Export (
+  addItem,
+  addMachine,
+  addRecipe,
+  delItem,
+  delMachine,
+  delRecipe,
+  editMachine,
+  editRecipe,
+  findRecipes,
+  listAllRecipes,
+  listItems,
+  listMachines,
+  listRecipes,
+  loadEnv,
+  saveEnv,
+ )
 import Tech.Ghci.Planning as Export (
   acceptProposal,
   estimateFactory,
@@ -25,20 +42,6 @@ import Tech.Ghci.Planning as Export (
   printProposal,
   printProposals,
   proposeFactory,
- )
-import Tech.Ghci.Recipes as Export (
-  addItem,
-  addRecipe,
-  delItem,
-  delRecipe,
-  editRecipe,
-  findRecipe,
-  findRecipes,
-  listAllRecipes,
-  listItems,
-  listRecipes,
-  loadRecipes,
-  saveRecipes,
  )
 import Tech.Ghci.State as Export (
   currentFactory,
@@ -50,7 +53,6 @@ import Tech.Ghci.State as Export (
   undo,
  )
 import Tech.Ghci.Utils as Export (putDocLn)
-import Tech.Machines as Export
 import Tech.Planner.Propose as Export (assumeGiven, doUseOverflows, dontUseOverflows)
 import Tech.Pretty as Export
 import Tech.Recipes as Export (consuming, producing)

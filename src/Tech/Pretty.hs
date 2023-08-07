@@ -21,6 +21,7 @@ import Prettyprinter (
   line,
   pretty,
   softline,
+  space,
   viaShow,
   vsep,
   (<+>),
@@ -33,7 +34,7 @@ import Prettyprinter.Render.Terminal (
   color,
   colorDull,
  )
-import Tech.Machines (externalSink, externalSource)
+import Tech.Planner.Estimate (externalSinkId, externalSourceId)
 import Tech.Planner.Propose (FactoryProp, IsNew (New), Proposal, ProposalError, ProposalStep, fFactory, fResult, fSteps)
 import Tech.Planner.Propose qualified as Propose
 import Tech.Store (InstantiateError, LoadError, LoadWarning)
@@ -90,8 +91,8 @@ ppRealFloatMilli = ppRealFloat TLBRF.Fixed (Just 3)
 ppItem :: Item -> Doc AnsiStyle
 ppItem = annotate (color White) . pretty . unItem
 
-ppMachine :: Machine -> Doc AnsiStyle
-ppMachine = annotate (colorDull Cyan) . pretty . unMachine
+ppMachineIdentifier :: MachineIdentifier -> Doc AnsiStyle
+ppMachineIdentifier = annotate (colorDull Cyan) . pretty . unMachineIdentifier
 
 ppRecipeIdentifier :: RecipeIdentifier -> Doc AnsiStyle
 ppRecipeIdentifier = pretty . unRecipeIdentifier
@@ -126,7 +127,9 @@ ppTransfer ppQ (Transfer ins outs) = ppImage ppQ ins <+> ">->" <+> ppImage ppQ o
 
 ppRecipeKey :: RecipeKey -> Doc AnsiStyle
 ppRecipeKey rk =
-  ppMachine (view fMachine rk) <> annotate (color Black) "/" <> ppRecipeIdentifier (view fIdentifier rk)
+  ppMachineIdentifier (view fMachineIdentifier rk)
+    <> annotate (color Black) "/"
+    <> ppRecipeIdentifier (view fIdentifier rk)
 
 ppRecipe :: Recipe -> Doc AnsiStyle
 ppRecipe r =
@@ -144,6 +147,13 @@ ppRecipeFunction r =
     )
     <> softline
     <> hang 2 (ppTransfer ppQuantity (view fTransfer r))
+
+ppMachine :: Machine -> Doc AnsiStyle
+ppMachine m =
+  ppMachineIdentifier (view fIdentifier m)
+    <> (if par /= 1.0 then space <> kw "parallelism" <+> ppRational par else mempty)
+ where
+  par = view fParallelism m
 
 ppAnonymousBeltSt :: BeltSt -> Doc AnsiStyle
 ppAnonymousBeltSt b =
@@ -219,11 +229,11 @@ ppAnonymousClusterDy c =
 
 ppClusterDy :: Node -> ClusterDy -> Doc AnsiStyle
 ppClusterDy n c
-  | view fMachine c == externalSource =
+  | view (fMachine . fIdentifier) c == externalSourceId =
       kw ("external" <> show n)
         <+> "↓"
         <+> ppImage ppPerMinute (view (fTransfer . fOutputs) c)
-  | view fMachine c == externalSink =
+  | view (fMachine . fIdentifier) c == externalSinkId =
       kw ("byproducts" <> show n)
         <+> "↓"
         <+> ppImage ppPerMinute (view (fTransfer . fInputs) c)
@@ -472,6 +482,8 @@ ppInstantiateError :: InstantiateError -> Doc AnsiStyle
 ppInstantiateError = \case
   Store.UnrecognizedRecipeIdentifier rk ->
     errDoc $ "Error: unknown recipe" <+> ppRecipeKey rk
+  Store.UnrecognizedMachineIdentifierForRecipe rk ->
+    errDoc $ "Error: unknown machine in key" <+> ppRecipeKey rk
 
 ppLoadError :: LoadError -> Doc AnsiStyle
 ppLoadError = \case
@@ -523,6 +535,8 @@ ppProposalError = \case
     errDoc ("No recipes found that produce" <+> ppItem item)
   Propose.ProposalStepsExceeded ->
     errDoc "maximum proposal steps exceeded"
+  Propose.RecipeMachineNotFound rk ->
+    errDoc ("Machine not found for" <+> ppRecipeKey rk)
 
 ppProposalStep :: ProposalStep -> Doc AnsiStyle
 ppProposalStep = \case

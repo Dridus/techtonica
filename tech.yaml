@@ -47,11 +47,32 @@ items:
 - stairs
 - thesher
 - waterWheel
+machines:
+- identifier: assembler
+  parallelism:
+    denominator: 1
+    numerator: 1
+- identifier: miner
+  parallelism:
+    denominator: 1
+    numerator: 1
+- identifier: planter
+  parallelism:
+    denominator: 1
+    numerator: 4
+- identifier: smelter
+  parallelism:
+    denominator: 1
+    numerator: 1
+- identifier: thresher
+  parallelism:
+    denominator: 1
+    numerator: 1
 recipes:
 - cycleTime: 40
   key:
     identifier: accumulator
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       copperFrame:
@@ -70,7 +91,7 @@ recipes:
 - cycleTime: 20
   key:
     identifier: biobrick
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       limestone:
@@ -86,7 +107,7 @@ recipes:
 - cycleTime: 12
   key:
     identifier: container
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       ironComponents:
@@ -102,7 +123,7 @@ recipes:
 - cycleTime: 4
   key:
     identifier: conveyorBelt
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       mechanicalComponents:
@@ -115,7 +136,7 @@ recipes:
 - cycleTime: 36
   key:
     identifier: coolingSystem
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       mechanicalComponents:
@@ -131,7 +152,7 @@ recipes:
 - cycleTime: 8
   key:
     identifier: copperComponents
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       copperIngot:
@@ -144,7 +165,7 @@ recipes:
 - cycleTime: 12
   key:
     identifier: copperFrame
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       copperIngot:
@@ -157,7 +178,7 @@ recipes:
 - cycleTime: 24
   key:
     identifier: copperWire
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       copperIngot:
@@ -170,7 +191,7 @@ recipes:
 - cycleTime: 10
   key:
     identifier: electricalComponents
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       copperWire:
@@ -186,7 +207,7 @@ recipes:
 - cycleTime: 8.8
   key:
     identifier: fastInserter
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       inserter:
@@ -205,7 +226,7 @@ recipes:
 - cycleTime: 8
   key:
     identifier: filterInserter
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       electricalComponents:
@@ -221,7 +242,7 @@ recipes:
 - cycleTime: 4
   key:
     identifier: inserter
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       mechanicalComponents:
@@ -234,7 +255,7 @@ recipes:
 - cycleTime: 4
   key:
     identifier: ironComponents
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       ironIngot:
@@ -247,7 +268,7 @@ recipes:
 - cycleTime: 12
   key:
     identifier: ironFrame
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       ironIngot:
@@ -260,7 +281,7 @@ recipes:
 - cycleTime: 6
   key:
     identifier: lightStick
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       copperWire:
@@ -276,7 +297,7 @@ recipes:
 - cycleTime: 6
   key:
     identifier: longInserter
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       inserter:
@@ -292,7 +313,7 @@ recipes:
 - cycleTime: 12
   key:
     identifier: mechanicalComponents
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       copperIngot:
@@ -308,7 +329,7 @@ recipes:
 - cycleTime: 11
   key:
     identifier: miningCharge
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       kindlevineExtract:
@@ -327,7 +348,7 @@ recipes:
 - cycleTime: 24
   key:
     identifier: miningDrill
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       ironComponents:
@@ -343,7 +364,7 @@ recipes:
 - cycleTime: 3
   key:
     identifier: plantmatter
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       plantmatterFiber:
@@ -356,7 +377,7 @@ recipes:
 - cycleTime: 12
   key:
     identifier: plantmatterFrame
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       plantmatterFiber:
@@ -369,7 +390,7 @@ recipes:
 - cycleTime: 2
   key:
     identifier: powerFloor
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       copperWire:
@@ -385,7 +406,7 @@ recipes:
 - cycleTime: 24
   key:
     identifier: processorUnit
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       electricalComponents:
@@ -401,7 +422,7 @@ recipes:
 - cycleTime: 9
   key:
     identifier: researchCore380nm
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       copperWire:
@@ -417,7 +438,7 @@ recipes:
 - cycleTime: 5
   key:
     identifier: shiverthornCoolant
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       ironComponents:
@@ -436,7 +457,7 @@ recipes:
 - cycleTime: 3.2
   key:
     identifier: soil
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       limestone:
@@ -452,7 +473,7 @@ recipes:
 - cycleTime: 2
   key:
     identifier: stairs
-    machine: assembler
+    machineIdentifier: assembler
   transfer:
     inputs:
       copperWire:
@@ -468,7 +489,7 @@ recipes:
 - cycleTime: 130
   key:
     identifier: kindlevine
-    machine: planter
+    machineIdentifier: planter
   transfer:
     inputs:
       kindlevineSeed:
@@ -481,7 +502,7 @@ recipes:
 - cycleTime: 130
   key:
     identifier: shiverthorn
-    machine: planter
+    machineIdentifier: planter
   transfer:
     inputs:
       shiverthornSeed:
@@ -494,7 +515,7 @@ recipes:
 - cycleTime: 3.6
   key:
     identifier: copperIngot
-    machine: smelter
+    machineIdentifier: smelter
   transfer:
     inputs:
       copperOre:
@@ -507,7 +528,7 @@ recipes:
 - cycleTime: 3.6
   key:
     identifier: ironIngot
-    machine: smelter
+    machineIdentifier: smelter
   transfer:
     inputs:
       ironOre:
@@ -520,7 +541,7 @@ recipes:
 - cycleTime: 6
   key:
     identifier: kindlevine
-    machine: thresher
+    machineIdentifier: thresher
   transfer:
     inputs:
       kindlevine:
@@ -536,7 +557,7 @@ recipes:
 - cycleTime: 3
   key:
     identifier: kindlevineSticks
-    machine: thresher
+    machineIdentifier: thresher
   transfer:
     inputs:
       kindlevineSticks:
@@ -552,7 +573,7 @@ recipes:
 - cycleTime: 5.75
   key:
     identifier: shiverthorn
-    machine: thresher
+    machineIdentifier: thresher
   transfer:
     inputs:
       shiverthorn:
@@ -568,7 +589,7 @@ recipes:
 - cycleTime: 3
   key:
     identifier: shiverthornBuds
-    machine: thresher
+    machineIdentifier: thresher
   transfer:
     inputs:
       shiverthornBuds:

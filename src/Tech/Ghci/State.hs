@@ -2,12 +2,14 @@ module Tech.Ghci.State (
   Generation (..),
   GhciState (..),
   Has_fFactory (..),
-  Has_fRecipes (..),
-  Has_fItems (..),
+  Has_fFactoryEnv (..),
   resetState,
   currentGeneration,
   currentFactory,
+  withFactoryEnv,
+  currentFactoryEnv,
   currentItems,
+  currentMachines,
   currentRecipes,
   updateState,
   history,
@@ -26,9 +28,8 @@ import Prettyprinter.Render.Terminal (AnsiStyle, Color (Yellow), color)
 import System.IO.Unsafe (unsafePerformIO)
 import Tech.Ghci.Utils (putDocLn)
 import Tech.LensOptions (techFields)
+import Tech.Planner.Propose (Has_fFactory (..))
 import Tech.Pretty (errDoc, kw, parens)
-import Tech.Planner.Propose (Has_fFactory(..))
-import Tech.Recipes (Recipes)
 import Tech.Types
 
 newtype Generation = Generation {unGeneration :: Int}
@@ -40,14 +41,16 @@ makeWrapped ''Generation
 
 data GhciState = GhciState
   { _ghciState_factory :: FactorySt
-  , _ghciState_recipes :: Recipes
-  , _ghciState_items :: Set Item
+  , _ghciState_factoryEnv :: FactoryEnv
   }
 deriving stock instance Show GhciState
 makeLensesWith techFields ''GhciState
+instance Has_fItems GhciState (Set Item) where fItems = fFactoryEnv . fItems
+instance Has_fMachines GhciState Machines where fMachines = fFactoryEnv . fMachines
+instance Has_fRecipes GhciState Recipes where fRecipes = fFactoryEnv . fRecipes
 
 newState :: GhciState
-newState = GhciState Gr.empty mempty mempty
+newState = GhciState Gr.empty (FactoryEnv mempty mempty mempty)
 
 {-# NOINLINE currentStateRef #-}
 currentStateRef :: IORef (Generation, GhciState)
@@ -61,22 +64,34 @@ stateHistoryRef = unsafePerformIO (newIORef mempty)
 undoneStateRef :: IORef (Seq (Doc AnsiStyle, Generation, GhciState))
 undoneStateRef = unsafePerformIO (newIORef mempty)
 
-resetState :: IO ()
+resetState :: MonadIO m => m ()
 resetState = writeIORef currentStateRef (Generation 0, newState)
 
-currentGeneration :: IO Generation
+currentGeneration :: MonadIO m => m Generation
 currentGeneration = view _1 <$> readIORef currentStateRef
 
-currentFactory :: IO FactorySt
+currentFactory :: MonadIO m => m FactorySt
 currentFactory = view (_2 . fFactory) <$> readIORef currentStateRef
 
-currentItems :: IO (Set Item)
+currentFactoryEnv :: MonadIO m => m FactoryEnv
+currentFactoryEnv = view (_2 . fFactoryEnv) <$> readIORef currentStateRef
+
+withFactoryEnv
+  :: MonadIO m
+  => (forall m'. (MonadIO m', MonadReader FactoryEnv m') => m' a)
+  -> m a
+withFactoryEnv act = runReaderT act =<< currentFactoryEnv
+
+currentItems :: MonadIO m => m (Set Item)
 currentItems = view (_2 . fItems) <$> readIORef currentStateRef
 
-currentRecipes :: IO Recipes
+currentMachines :: MonadIO m => m Machines
+currentMachines = view (_2 . fMachines) <$> readIORef currentStateRef
+
+currentRecipes :: MonadIO m => m Recipes
 currentRecipes = view (_2 . fRecipes) <$> readIORef currentStateRef
 
-updateState :: Doc AnsiStyle -> (GhciState -> GhciState) -> IO ()
+updateState :: MonadIO m => Doc AnsiStyle -> (GhciState -> GhciState) -> m ()
 updateState deltaLog f = do
   (g, s) <- readIORef currentStateRef
   let
@@ -93,7 +108,7 @@ ppHistoryState :: Doc AnsiStyle -> (Doc AnsiStyle, Generation, GhciState) -> Doc
 ppHistoryState relation (deltaLog, generation, _) =
   parens (ppGeneration generation) <+> relation <+> deltaLog
 
-history :: IO ()
+history :: MonadIO m => m ()
 history = do
   hist <- readIORef stateHistoryRef
   (g, _) <- readIORef currentStateRef
@@ -109,7 +124,7 @@ history = do
          ]
       <> (ppHistoryState "after" <$> toList undone)
 
-undo :: IO ()
+undo :: MonadIO m => m ()
 undo =
   readIORef stateHistoryRef >>= \case
     (deltaLog, g', s') :<| ss -> do
@@ -120,7 +135,7 @@ undo =
     _ -> do
       putDocLn (errDoc "no more to undo!")
 
-redo :: IO ()
+redo :: MonadIO m => m ()
 redo =
   readIORef undoneStateRef >>= \case
     (deltaLog, g', s') :<| ss -> do

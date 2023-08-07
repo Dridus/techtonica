@@ -23,15 +23,15 @@ makeWrapped ''Item
 instance Show Item where
   showsPrec d (Item i) = showParen (d > 9) $ showString "Item " . showsPrec (d + 1) i
 
--- ** Machines
+-- ** Machine identifiers
 
-newtype Machine = Machine {unMachine :: Text}
-deriving newtype instance Eq Machine
-deriving newtype instance IsString Machine
-deriving newtype instance Ord Machine
-makeWrapped ''Machine
-instance Show Machine where
-  showsPrec d (Machine i) = showParen (d > 9) $ showString "Machine " . showsPrec (d + 1) i
+newtype MachineIdentifier = MachineIdentifier {unMachineIdentifier :: Text}
+deriving newtype instance Eq MachineIdentifier
+deriving newtype instance IsString MachineIdentifier
+deriving newtype instance Ord MachineIdentifier
+makeWrapped ''MachineIdentifier
+instance Show MachineIdentifier where
+  showsPrec d (MachineIdentifier i) = showParen (d > 9) $ showString "MachineIdentifier " . showsPrec (d + 1) i
 
 -- ** Recipe identifiers
 
@@ -149,13 +149,15 @@ divT t n = over fInputs (`divI` n) . over fOutputs (`divI` n) $ t
 -- ** Machine Recipes
 
 data RecipeKey = RecipeKey
-  { _recipeKey_machine :: Machine
+  { _recipeKey_machineIdentifier :: MachineIdentifier
   , _recipeKey_identifier :: RecipeIdentifier
   }
 deriving stock instance Eq RecipeKey
 deriving stock instance Ord RecipeKey
 deriving stock instance Show RecipeKey
 makeLensesWith techFields ''RecipeKey
+
+type Recipes = Map MachineIdentifier (Map RecipeIdentifier Recipe)
 
 -- Invariant: key -> (cycleTime, transfer)
 data Recipe = Recipe
@@ -177,6 +179,20 @@ divR :: Recipe -> Rational -> Recipe
 divR r n = over fTransfer (`divT` n) r
 
 -- * Factories
+
+-- ** Machines
+
+type Machines = Map MachineIdentifier Machine
+
+data Machine = Machine
+  { _machine_identifier :: MachineIdentifier
+  , _machine_parallelism :: Rational
+  }
+deriving stock instance Show Machine
+makeLensesWith techFields ''Machine
+instance Eq Machine where (==) = (==) `on` view fIdentifier
+instance Ord Machine where compare = compare `on` view fIdentifier
+instance Has_fMachineIdentifier Machine MachineIdentifier where fMachineIdentifier = fIdentifier
 
 -- ** Belts carrying an item between units
 
@@ -215,13 +231,14 @@ overflow b = max 0 (view fEntering b - view fExiting b)
 
 data ClusterSt = ClusterSt
   { _clusterSt_recipe :: Recipe
+  , _clusterSt_machine :: Machine
   , _clusterSt_quantity :: Quantity
   }
 deriving stock instance Eq ClusterSt
 deriving stock instance Ord ClusterSt
 deriving stock instance Show ClusterSt
 makeLensesWith techFields ''ClusterSt
-instance Has_fMachine ClusterSt Machine where fMachine = fRecipe . fKey . fMachine
+instance Has_fMachineIdentifier ClusterSt MachineIdentifier where fMachineIdentifier = fMachine . fMachineIdentifier
 instance Has_fCycleTime ClusterSt NominalDiffTime where fCycleTime = fRecipe . fCycleTime
 
 -- *** Cluster dynamically
@@ -234,7 +251,8 @@ deriving stock instance Eq ClusterDy
 deriving stock instance Show ClusterDy
 makeLensesWith techFields ''ClusterDy
 instance Has_fRecipe ClusterDy Recipe where fRecipe = fStatic . fRecipe
-instance Has_fMachine ClusterDy Machine where fMachine = fRecipe . fKey . fMachine
+instance Has_fMachine ClusterDy Machine where fMachine = fStatic . fMachine
+instance Has_fMachineIdentifier ClusterDy MachineIdentifier where fMachineIdentifier = fStatic . fMachineIdentifier
 instance Has_fCycleTime ClusterDy NominalDiffTime where fCycleTime = fRecipe . fCycleTime
 instance Has_fQuantity ClusterDy Quantity where fQuantity = fStatic . fQuantity
 
@@ -245,3 +263,14 @@ type FactoryDy = Gr ClusterDy BeltDy
 
 newNode :: Gr a b -> Node
 newNode g = if Gr.isEmpty g then 1 else succ . snd $ nodeRange g
+
+-- * Environments (not biomes)
+
+data FactoryEnv = FactoryEnv
+  { _factoryEnv_items :: Set Item
+  , _factoryEnv_machines :: Machines
+  , _factoryEnv_recipes :: Recipes
+  }
+deriving stock instance Eq FactoryEnv
+deriving stock instance Show FactoryEnv
+makeLensesWith techFields ''FactoryEnv

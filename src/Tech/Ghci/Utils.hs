@@ -22,11 +22,11 @@ import System.IO.Unsafe (unsafePerformIO)
 pageSize :: IORef (Maybe Int)
 pageSize = unsafePerformIO $ newIORef Nothing
 
-putDocLn :: Doc AnsiStyle -> IO ()
+putDocLn :: MonadIO m => Doc AnsiStyle -> m ()
 putDocLn d = do
   width <- readIORef pageSize >>= \ case
     Nothing -> do
-      sz <- TerminalSize.size
+      sz <- liftIO TerminalSize.size
       let w = maybe 120 TerminalSize.width sz
       w <$ writeIORef pageSize (Just w)
     Just w -> pure w
@@ -34,9 +34,9 @@ putDocLn d = do
         { layoutPageWidth = AvailablePerLine width 1.0 }
   case layoutPretty options d of
     SEmpty -> pure ()
-    ls -> renderIO stdout ls >> putStrLn ""
+    ls -> liftIO (renderIO stdout ls) >> putStrLn ""
 
-printVerify :: (Set VerifyWarning, Either (Set VerifyError) ()) -> IO (Bool, Bool)
+printVerify :: MonadIO m => (Set VerifyWarning, Either (Set VerifyError) ()) -> m (Bool, Bool)
 printVerify (warnings, res) = do
   putDocLn . vsep $
     (ppVerifyWarning <$> toList warnings)
